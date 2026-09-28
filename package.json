@@ -1,0 +1,21 @@
+{
+  "name": "asmibuy-monorepo",
+  "version": "2.1.0",
+  "description": "Asmibuy MVP Web Móvil - Plataforma de Alimentos (Equipo 4-C)",
+  "private": true,
+  "workspaces": [
+    "app/backend",
+    "app/frontend"
+  ],
+  "scripts": {
+    "start:backend": "npm run start --workspace=app/backend",
+    "start:frontend": "npm run start --workspace=app/frontend",
+    "build:backend": "npm run build --workspace=app/backend",
+    "build:frontend": "npm run build --workspace=app/frontend",
+    "migrate": "npm run migrate --workspace=app/backend",
+    "test:health": "node -e \"fetch('http://localhost:3001/api/v1/health').then(r=>r.json()).then(console.log)\""
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

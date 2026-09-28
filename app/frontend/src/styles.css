@@ -1,0 +1,228 @@
+/* =========================================================================
+   DISEÑO COMPARTIDO ASMIBUY (PALETA DINÁMICA: VERDE, NARANJA Y AMARILLO)
+   MOBILE-FIRST PRIORITARIO - INSPIRACIÓN CUPERTINO & DEGRADADOS VIBRANTES
+   ========================================================================= */
+
+:root {
+  /* Tokens de Superficie y Neutros Estilo iOS */
+  --color-fondo: #f8faf9;            /* Fondo neutro con sutil calidez */
+  --color-superficie: #ffffff;        /* Blanco para tarjetas y contenedores */
+  --color-texto: #1c1917;             /* Texto primario de alto contraste */
+  --color-texto-secundario: #78716c;  /* Gris cálido para subtítulos y metadatos */
+  --color-borde: #e7e5e4;             /* Divisores suaves */
+
+  /* DEGRADADOS DINÁMICOS */
+  --gradiente-naranja-amarillo: linear-gradient(135deg, #ff6b35 0%, #f97316 45%, #ffb703 100%);
+  --gradiente-naranja-hover: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  --gradiente-verde-fresco: linear-gradient(135deg, #059669 0%, #10b981 60%, #34d399 100%);
+  --gradiente-verde-hover: linear-gradient(135deg, #047857 0%, #059669 100%);
+  --gradiente-amarillo-dorado: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
+  --gradiente-citrico-suave: linear-gradient(135deg, #fff7ed 0%, #fefce8 100%);
+  --gradiente-marca-tricolor: linear-gradient(90deg, #10b981 0%, #f97316 50%, #eab308 100%);
+
+  /* VARIANTES DE NARANJA (Acento Principal de Marca y Acción) */
+  --token-naranja-primario: #f97316;
+  --token-naranja-oscuro: #ea580c;
+  --token-naranja-fondo: #fff7ed;
+  --token-naranja-borde: #fed7aa;
+
+  /* VARIANTES DE VERDE (Confirmación, Éxito y Stock Normal) */
+  --token-verde-confirmar: #10b981;
+  --token-verde-oscuro: #047857;
+  --token-verde-fondo: #ecfdf5;
+  --token-verde-borde: #a7f3d0;
+
+  /* VARIANTES DE AMARILLO (Avisos, Atención y Alertas) */
+  --token-amarillo-aviso: #f59e0b;
+  --token-amarillo-dorado: #eab308;
+  --token-amarillo-fondo: #fefce8;
+  --token-amarillo-borde: #fde047;
+  --token-amarillo-texto: #451a03;     /* Texto marrón oscuro para máximo contraste WCAG */
+
+  /* ALERTA Y ERROR */
+  --token-rojo-alerta: #dc2626;
+  --token-rojo-fondo: #fef2f2;
+  --token-rojo-borde: #fecaca;
+
+  /* Dimensiones y Ergonomía Móvil */
+  --radio-borde: 16px;
+  --touch-target-min: 48px;           /* Mínimo 48px para ergonomía táctil */
+  --sombra-cupertino: 0 2px 10px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.08);
+  --sombra-vibrante-naranja: 0 4px 16px rgba(249, 115, 22, 0.28);
+  --sombra-vibrante-verde: 0 4px 16px rgba(16, 185, 129, 0.28);
+  --safe-bottom: env(safe-area-inset-bottom, 12px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* Reset y optimización táctil */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  line-height: 1.45;
+  font-size: 16px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: manipulation;
+}
+
+/* Indicador de foco accesible con tono naranja cálido */
+:focus-visible {
+  outline: 3px solid var(--token-naranja-primario);
+  outline-offset: 2px;
+}
+
+/* Iconos de Material Symbols Rounded */
+.material-symbols-rounded {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  line-height: 1;
+  display: inline-block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.material-symbols-rounded.filled {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* Tarjeta Cupertino Reutilizable con esquinas suaves */
+.card-cupertino {
+  background: var(--color-superficie);
+  border-radius: var(--radio-borde);
+  padding: 18px 16px;
+  box-shadow: var(--sombra-cupertino);
+  border: 1px solid var(--color-borde);
+  margin-bottom: 14px;
+}
+
+/* Botones Accesibles Táctiles con Degradados Dinámicos (Mínimo 48px) */
+.btn-cupertino {
+  min-height: var(--touch-target-min);
+  padding: 12px 22px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn-cupertino:active {
+  transform: scale(0.96);
+  opacity: 0.92;
+}
+
+/* Botón Principal (Degradado Naranja a Amarillo Sol) */
+.btn-naranja, .btn-primario {
+  background: var(--gradiente-naranja-amarillo);
+  color: #ffffff;
+  box-shadow: var(--sombra-vibrante-naranja);
+}
+
+.btn-naranja:hover, .btn-primario:hover {
+  background: var(--gradiente-naranja-hover);
+}
+
+/* Botón Verde (Degradado Verde Esmeralda a Menta) */
+.btn-verde {
+  background: var(--gradiente-verde-fresco);
+  color: #ffffff;
+  box-shadow: var(--sombra-vibrante-verde);
+}
+
+.btn-verde:hover {
+  background: var(--gradiente-verde-hover);
+}
+
+/* Botón Amarillo / Advertencia */
+.btn-amarillo {
+  background: var(--gradiente-amarillo-dorado);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.btn-rojo {
+  background-color: var(--token-rojo-alerta);
+  color: #ffffff;
+}
+
+.btn-secundario {
+  background-color: #f5f5f4;
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
+}
+
+/* Badges / Píldoras de estado con degradados y variantes */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.badge-verde {
+  background: var(--gradiente-verde-fresco);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.badge-amarillo {
+  background: var(--gradiente-amarillo-dorado);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+
+.badge-naranja {
+  background: var(--gradiente-naranja-amarillo);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.25);
+}
+
+.badge-rojo {
+  background-color: var(--token-rojo-fondo);
+  color: var(--token-rojo-alerta);
+  border: 1px solid var(--token-rojo-borde);
+}
+
+/* Contenedor principal Mobile-First */
+.app-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  padding-bottom: calc(80px + var(--safe-bottom));
+}
+
+@media (min-width: 768px) {
+  .card-cupertino {
+    padding: 22px 26px;
+    margin-bottom: 16px;
+  }
+  .app-container {
+    padding: 20px 24px 32px 24px;
+  }
+}
