@@ -61,17 +61,17 @@ Resultado: Entradas, ajustes y ventas mantienen el saldo sin negativos.
 
 ## W2-04 Crear pantallas de gestión
 
-Prioridad: P1. Estado: pendiente.
+Prioridad: P1. Estado: en revisión.
 
 Dependencias: W2-03, W1-04.
 
 Resultado: Administrador gestiona ingredientes, recetas y movimientos desde el móvil.
 
-- [ ] Crear listas y formularios de ingredientes, platillos, recetas y movimientos.
-- [ ] Mostrar unidad y cantidades sin conversiones automáticas, con errores de validación claros.
-- [ ] Conectar API real y comprobar campos decimales, teclado, contenido largo y navegación.
-- [ ] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [ ] Completar `docs/auditorias/W2-04.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [x] Crear listas y formularios de ingredientes, platillos, recetas y movimientos.
+- [x] Mostrar unidad y cantidades sin conversiones automáticas, con errores de validación claros.
+- [x] Conectar API real y comprobar campos decimales, teclado, contenido largo y navegación.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
+- [x] Completar `docs/auditorias/W2-04.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W2-05 Implementar mínimos y Avisos
 
