@@ -30,6 +30,12 @@ export class AuthService {
   esTrabajador = computed(() => this.usuarioActual()?.perfil === 'TRABAJADOR');
 
   constructor() {
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/asmibuy_csrf=([^;]+)/);
+      if (match) {
+        this.csrfToken.set(match[1]);
+      }
+    }
     this.verificarSesionInicial();
   }
 

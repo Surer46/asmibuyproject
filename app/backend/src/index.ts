@@ -7,6 +7,7 @@ import { authRouter } from './routes/auth.routes';
 import { catalogoRouter } from './routes/catalogo.routes';
 import { inventarioRouter } from './routes/inventario.routes';
 import { promocionesRouter } from './routes/promociones.routes';
+import { ventasRouter } from './routes/ventas.routes';
 import { verificarSesion, validarCSRF } from './middlewares/auth.middleware';
 import { probarConexionBD } from './config/database';
 
@@ -35,6 +36,7 @@ app.use('/api/v1', authRouter);
 app.use('/api/v1', catalogoRouter);
 app.use('/api/v1', inventarioRouter);
 app.use('/api/v1', promocionesRouter);
+app.use('/api/v1', ventasRouter);
 
 // Manejador de rutas no encontradas (404)
 app.use('*', (_req, res) => {

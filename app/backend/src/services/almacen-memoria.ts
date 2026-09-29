@@ -62,10 +62,15 @@ export const almacenMemoria = {
 
   promociones: [] as PromocionInterna[],
 
+  ordenes: [] as OrdenInterna[],
+  ordenDetalles: [] as PartidaOrdenInterna[],
+
   proxIngredienteId: 5,
   proxPlatilloId: 2,
   proxMovimientoId: 4,
-  proxPromocionId: 1
+  proxPromocionId: 1,
+  proxOrdenId: 1,
+  proxOrdenDetalleId: 1
 };
 
 export type TipoPromocion = 'PORCENTAJE' | 'NXM';
@@ -88,4 +93,45 @@ export interface PromocionInterna {
   creadoEn: Date;
   actualizadoEn: Date;
 }
+
+export type EstadoOrden = 'CONFIRMADA' | 'ANULADA';
+export type MetodoPago = 'EFECTIVO' | 'EXTERNO' | 'SIN_COBRO';
+
+export interface PartidaOrdenInterna {
+  id: number;
+  ordenId: number;
+  platilloId: number;
+  nombrePlatillo: string;
+  precioUnitario: Decimal;
+  cantidad: number;
+  unidadesCobradas: number;
+  unidadesBonificadas: number;
+  subtotalBruto: Decimal;
+  descuento: Decimal;
+  subtotalNeto: Decimal;
+  promocionId: number | null;
+  creadoEn: Date;
+}
+
+export interface OrdenInterna {
+  id: number;
+  folio: string;
+  claveIdempotencia: string;
+  usuarioId: number;
+  estado: EstadoOrden;
+  metodoPago: MetodoPago;
+  subtotalBruto: Decimal;
+  descuentoTotal: Decimal;
+  total: Decimal;
+  promocionId: number | null;
+  promocionNombre: string | null;
+  promocionTipo: string | null;
+  promocionAhorro: Decimal | null;
+  motivoAnulacion: string | null;
+  usuarioAnulacionId: number | null;
+  anuladoEn: Date | null;
+  creadoEn: Date;
+  actualizadoEn: Date;
+}
+
 
