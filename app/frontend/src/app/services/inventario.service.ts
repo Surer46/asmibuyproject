@@ -47,6 +47,15 @@ export interface MovimientoInventarioDTO {
   creadoEn: string;
 }
 
+export interface AvisoStockDTO {
+  ingredienteId: number;
+  nombre: string;
+  unidad: UnidadIngrediente;
+  existencia: string;
+  minimo: string;
+  estadoStock: EstadoStock;
+}
+
 export interface CrearIngredienteInput {
   nombre: string;
   unidad: UnidadIngrediente;
@@ -149,5 +158,10 @@ export class InventarioApiService {
 
   registrarAjuste(data: RegistrarAjusteInput): Observable<MovimientoInventarioDTO> {
     return this.http.post<MovimientoInventarioDTO>(`${this.baseUrl}/admin/movimientos/ajuste`, data, this.getOptions());
+  }
+
+  // --- AVISOS DE INVENTARIO (CW-08 / CW-09) ---
+  obtenerAvisos(): Observable<AvisoStockDTO[]> {
+    return this.http.get<AvisoStockDTO[]>(`${this.baseUrl}/inventario/avisos`, { withCredentials: true });
   }
 }

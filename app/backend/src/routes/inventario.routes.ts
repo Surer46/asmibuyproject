@@ -100,6 +100,36 @@ inventarioRouter.get('/inventario/existencias', exigirAutenticacion, async (_req
 });
 
 /**
+ * GET /api/v1/inventario/avisos
+ * Retorna las condiciones actuales de stock con prioridad:
+ * 1. AGOTADO (existencia <= 0)
+ * 2. BAJO_STOCK (existencia > 0 AND existencia <= minimo)
+ * 3. NORMAL (existencia > minimo)
+ * Conforme al contrato docs/contratos/02-catalogo-inventario.md (Sección 3.2).
+ */
+inventarioRouter.get('/inventario/avisos', exigirAutenticacion, async (_req: Request, res: Response) => {
+  try {
+    const ingredientes = await CatalogoService.listarIngredientes();
+    const ordenPrioridad: Record<string, number> = { AGOTADO: 1, BAJO_STOCK: 2, NORMAL: 3 };
+
+    const avisos = ingredientes
+      .map((ing) => ({
+        ingredienteId: ing.id,
+        nombre: ing.nombre,
+        unidad: ing.unidad,
+        existencia: ing.existencia,
+        minimo: ing.minimo,
+        estadoStock: ing.estadoStock
+      }))
+      .sort((a, b) => ordenPrioridad[a.estadoStock] - ordenPrioridad[b.estadoStock] || a.nombre.localeCompare(b.nombre));
+
+    res.json(avisos);
+  } catch (error: any) {
+    manejarError(res, error);
+  }
+});
+
+/**
  * Helper para estandarizar las respuestas de error
  */
 function manejarError(res: Response, error: any) {

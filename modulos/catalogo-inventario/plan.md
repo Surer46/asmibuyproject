@@ -75,17 +75,17 @@ Resultado: Administrador gestiona ingredientes, recetas y movimientos desde el m
 
 ## W2-05 Implementar mínimos y Avisos
 
-Prioridad: P1. Estado: pendiente.
+Prioridad: P1. Estado: en revisión.
 
 Dependencias: W2-03, W1-04.
 
 Resultado: Una condición de bajo stock por ingrediente, visible dentro de la web.
 
-- [ ] Permitir al administrador editar un mínimo no negativo para cada ingrediente.
-- [ ] Mostrar bajo stock con existencia menor o igual al mínimo y agotado a cero, priorizando este último.
-- [ ] Reutilizar la consulta de condiciones actuales en inventario y Avisos; actualizar al abrir, volver a la pestaña y tras operaciones.
-- [ ] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [ ] Completar `docs/auditorias/W2-05.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [x] Permitir al administrador editar un mínimo no negativo para cada ingrediente.
+- [x] Mostrar bajo stock con existencia menor o igual al mínimo y agotado a cero, priorizando este último.
+- [x] Reutilizar la consulta de condiciones actuales en inventario y Avisos; actualizar al abrir, volver a la pestaña y tras operaciones.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
+- [x] Completar `docs/auditorias/W2-05.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W2-06 Verificar inventario integrado
 

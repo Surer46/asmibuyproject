@@ -1,15 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { InventarioApiService, AvisoStockDTO } from '../../services/inventario.service';
 import { AuthService } from '../../services/auth.service';
-
-interface AvisoIngrediente {
-  id: number;
-  nombre: string;
-  existencia: string;
-  minimo: string;
-  unidad: 'g' | 'ml' | 'pieza';
-  estado: 'AGOTADO' | 'BAJO_STOCK' | 'NORMAL';
-}
 
 @Component({
   selector: 'app-avisos',
@@ -22,39 +14,57 @@ interface AvisoIngrediente {
           <h2>Avisos de Inventario</h2>
           <p class="subtitle">Condición actual de ingredientes y existencias críticas</p>
         </div>
-        <button (click)="recargarAvisos()" class="btn-cupertino btn-secundario btn-sm">
-          <span class="material-symbols-rounded">refresh</span>
-          <span>Actualizar</span>
+        <button (click)="recargarAvisos()" class="btn-cupertino btn-secundario btn-sm" [disabled]="cargando()">
+          <span class="material-symbols-rounded" [class.icono-rotando]="cargando()">refresh</span>
+          <span>{{ cargando() ? 'Consultando...' : 'Actualizar' }}</span>
         </button>
       </div>
 
-      <div class="avisos-list">
-        @for (aviso of listaAvisos; track aviso.id) {
-          <div class="card-cupertino aviso-item" [class.borde-rojo]="aviso.estado === 'AGOTADO'" [class.borde-amarillo]="aviso.estado === 'BAJO_STOCK'" [class.borde-verde]="aviso.estado === 'NORMAL'">
-            <div class="aviso-icon-wrapper" [class.bg-rojo]="aviso.estado === 'AGOTADO'" [class.bg-amarillo]="aviso.estado === 'BAJO_STOCK'" [class.bg-verde]="aviso.estado === 'NORMAL'">
-              <span class="material-symbols-rounded">
-                {{ aviso.estado === 'AGOTADO' ? 'error' : aviso.estado === 'BAJO_STOCK' ? 'warning' : 'check_circle' }}
-              </span>
-            </div>
+      <!-- Estado de carga -->
+      <div *ngIf="cargando() && avisos().length === 0" class="loading-state">
+        <p>Consultando condiciones de stock actual...</p>
+      </div>
 
-            <div class="aviso-details">
-              <h4>{{ aviso.nombre }}</h4>
-              <p class="stock-info">
-                Existencia actual: <strong>{{ aviso.existencia }} {{ aviso.unidad }}</strong> (Mínimo: {{ aviso.minimo }} {{ aviso.unidad }})
-              </p>
-            </div>
+      <!-- Estado vacío -->
+      <div *ngIf="!cargando() && avisos().length === 0" class="empty-state card-cupertino">
+        <span class="material-symbols-rounded icon-grande">inventory</span>
+        <p>No se encontraron insumos registrados en el inventario.</p>
+      </div>
 
-            <div class="aviso-badge">
-              @if (aviso.estado === 'AGOTADO') {
-                <span class="badge badge-rojo">AGOTADO</span>
-              } @else if (aviso.estado === 'BAJO_STOCK') {
-                <span class="badge badge-amarillo">BAJO STOCK</span>
-              } @else {
-                <span class="badge badge-verde">NORMAL</span>
-              }
-            </div>
+      <!-- Lista de Avisos (Una sola fila por ingrediente - Criterio CW-09) -->
+      <div class="avisos-list" *ngIf="avisos().length > 0">
+        <div
+          *ngFor="let aviso of avisos(); trackBy: trackPorId"
+          class="card-cupertino aviso-item"
+          [class.borde-rojo]="aviso.estadoStock === 'AGOTADO'"
+          [class.borde-amarillo]="aviso.estadoStock === 'BAJO_STOCK'"
+          [class.borde-verde]="aviso.estadoStock === 'NORMAL'">
+
+          <div
+            class="aviso-icon-wrapper"
+            [class.bg-rojo]="aviso.estadoStock === 'AGOTADO'"
+            [class.bg-amarillo]="aviso.estadoStock === 'BAJO_STOCK'"
+            [class.bg-verde]="aviso.estadoStock === 'NORMAL'">
+            <span class="material-symbols-rounded">
+              {{ aviso.estadoStock === 'AGOTADO' ? 'error' : aviso.estadoStock === 'BAJO_STOCK' ? 'warning' : 'check_circle' }}
+            </span>
           </div>
-        }
+
+          <div class="aviso-details">
+            <h4>{{ aviso.nombre }}</h4>
+            <p class="stock-info">
+              Existencia actual: <strong>{{ aviso.existencia }} {{ aviso.unidad }}</strong>
+              <span class="separador">|</span>
+              Mínimo obligatorio: <strong>{{ aviso.minimo }} {{ aviso.unidad }}</strong>
+            </p>
+          </div>
+
+          <div class="aviso-badge">
+            <span *ngIf="aviso.estadoStock === 'AGOTADO'" class="badge badge-rojo">AGOTADO</span>
+            <span *ngIf="aviso.estadoStock === 'BAJO_STOCK'" class="badge badge-amarillo">BAJO STOCK</span>
+            <span *ngIf="aviso.estadoStock === 'NORMAL'" class="badge badge-verde">NORMAL</span>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -83,6 +93,13 @@ interface AvisoIngrediente {
       font-size: 0.85rem;
       flex-shrink: 0;
       border-radius: 12px;
+    }
+    .icono-rotando {
+      animation: rotar 1s linear infinite;
+    }
+    @keyframes rotar {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
     .avisos-list {
       display: flex;
@@ -136,7 +153,7 @@ interface AvisoIngrediente {
     }
     .aviso-details {
       flex: 1;
-      min-width: 0; /* Previene desborde de texto en móvil */
+      min-width: 0;
     }
     .aviso-details h4 {
       font-size: 0.98rem;
@@ -151,8 +168,23 @@ interface AvisoIngrediente {
       color: var(--color-texto-secundario);
       line-height: 1.3;
     }
+    .separador {
+      margin: 0 4px;
+      color: var(--color-borde);
+    }
     .aviso-badge {
       flex-shrink: 0;
+    }
+
+    .loading-state, .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--color-texto-secundario);
+    }
+    .icon-grande {
+      font-size: 48px;
+      margin-bottom: 8px;
+      color: #a1a1aa;
     }
 
     @media (max-width: 480px) {
@@ -179,18 +211,57 @@ interface AvisoIngrediente {
     }
   `]
 })
-export class AvisosComponent {
+export class AvisosComponent implements OnInit, OnDestroy {
+  private api = inject(InventarioApiService);
   authService = inject(AuthService);
 
-  listaAvisos: AvisoIngrediente[] = [
-    { id: 1, nombre: 'Carne de Res Molida', existencia: '0.000', minimo: '500.000', unidad: 'g', estado: 'AGOTADO' },
-    { id: 2, nombre: 'Pan de Hamburguesa', existencia: '4', minimo: '10', unidad: 'pieza', estado: 'BAJO_STOCK' },
-    { id: 3, nombre: 'Queso Cheddar', existencia: '25', minimo: '8', unidad: 'pieza', estado: 'NORMAL' },
-    { id: 4, nombre: 'Aceite Vegetal', existencia: '150.000', minimo: '500.000', unidad: 'ml', estado: 'BAJO_STOCK' }
-  ];
+  avisos = signal<AvisoStockDTO[]>([]);
+  cargando = signal<boolean>(false);
 
-  recargarAvisos() {
-    // Al recargar se consulta el estado vigente
-    console.log('Avisos actualizados');
+  private listenerVisibilidad: (() => void) | null = null;
+  private listenerFoco: (() => void) | null = null;
+
+  ngOnInit(): void {
+    this.recargarAvisos();
+
+    // Criterio CW-09: Al volver a la pestaña o ventana se consulta el estado vigente
+    this.listenerVisibilidad = () => {
+      if (document.visibilityState === 'visible') {
+        this.recargarAvisos();
+      }
+    };
+    this.listenerFoco = () => {
+      this.recargarAvisos();
+    };
+
+    document.addEventListener('visibilitychange', this.listenerVisibilidad);
+    window.addEventListener('focus', this.listenerFoco);
+  }
+
+  ngOnDestroy(): void {
+    if (this.listenerVisibilidad) {
+      document.removeEventListener('visibilitychange', this.listenerVisibilidad);
+    }
+    if (this.listenerFoco) {
+      window.removeEventListener('focus', this.listenerFoco);
+    }
+  }
+
+  recargarAvisos(): void {
+    this.cargando.set(true);
+    this.api.obtenerAvisos().subscribe({
+      next: (datos) => {
+        this.avisos.set(datos);
+        this.cargando.set(false);
+      },
+      error: (err) => {
+        console.error('Error al consultar avisos de inventario:', err);
+        this.cargando.set(false);
+      }
+    });
+  }
+
+  trackPorId(_index: number, aviso: AvisoStockDTO): number {
+    return aviso.ingredienteId;
   }
 }
