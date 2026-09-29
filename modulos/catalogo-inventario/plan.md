@@ -33,17 +33,17 @@ Resultado: Modelo de receta y contrato de consumo acordados con ventas.
 
 ## W2-02 Implementar catálogo y recetas
 
-Prioridad: P0. Estado: pendiente.
+Prioridad: P0. Estado: en revisión.
 
 Dependencias: W1-02, W1-03, W2-01.
 
 Resultado: API de ingredientes y platillos con recetas válidas.
 
-- [ ] Crear migraciones, API y validaciones de ingredientes, precio, receta y activación.
-- [ ] Impedir cambios de unidad con referencias, recetas vacías y uso de ingredientes inactivos.
-- [ ] Comprobar que guardar recetas no modifica existencias y preservar referencias históricas.
-- [ ] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [ ] Completar `docs/auditorias/W2-02.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [x] Crear migraciones, API y validaciones de ingredientes, precio, receta y activación.
+- [x] Impedir cambios de unidad con referencias, recetas vacías y uso de ingredientes inactivos.
+- [x] Comprobar que guardar recetas no modifica existencias y preservar referencias históricas.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
+- [x] Completar `docs/auditorias/W2-02.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W2-03 Implementar movimientos y consumo
 

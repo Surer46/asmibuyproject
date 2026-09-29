@@ -16,12 +16,21 @@ async function ejecutarMigraciones() {
 
   const client = await pool.connect();
   try {
-    const sqlPath = path.join(__dirname, '001_crear_usuarios_y_sesiones.sql');
-    const sql = fs.readFileSync(sqlPath, 'utf8');
+    const dirArchivos = fs.readdirSync(__dirname);
+    const sqlArchivos = dirArchivos
+      .filter((archivo) => archivo.endsWith('.sql'))
+      .sort();
 
-    console.log('Aplicando: 001_crear_usuarios_y_sesiones.sql...');
-    await client.query(sql);
-    console.log('✅ Migración aplicada exitosamente en PostgreSQL / Supabase.');
+    for (const archivo of sqlArchivos) {
+      const sqlPath = path.join(__dirname, archivo);
+      const sql = fs.readFileSync(sqlPath, 'utf8');
+
+      console.log(`Aplicando: ${archivo}...`);
+      await client.query(sql);
+      console.log(`✅ Migración ${archivo} aplicada.`);
+    }
+
+    console.log('\n✨ Todas las migraciones fueron procesadas exitosamente.');
   } catch (err: any) {
     console.error('❌ Error aplicando migraciones:', err.message);
   } finally {
