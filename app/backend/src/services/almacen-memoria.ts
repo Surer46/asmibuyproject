@@ -60,7 +60,32 @@ export const almacenMemoria = {
     { id: 3, ingredienteId: 3, tipo: 'ENTRADA' as TipoMovimiento, cantidad: new Decimal(40), motivo: 'Stock inicial', usuarioId: 1, creadoEn: new Date() }
   ] as MovimientoInterno[],
 
+  promociones: [] as PromocionInterna[],
+
   proxIngredienteId: 5,
   proxPlatilloId: 2,
-  proxMovimientoId: 4
+  proxMovimientoId: 4,
+  proxPromocionId: 1
 };
+
+export type TipoPromocion = 'PORCENTAJE' | 'NXM';
+export type DuracionPromocion = 'TEMPORAL' | 'PERMANENTE';
+export type EstadoPromocion = 'ACTIVA' | 'INACTIVA' | 'RETIRADA';
+
+export interface PromocionInterna {
+  id: number;
+  nombre: string;
+  platilloId: number;
+  tipo: TipoPromocion;
+  porcentaje: Decimal | null;
+  n: number | null;
+  m: number | null;
+  duracion: DuracionPromocion;
+  fechaInicio: Date | null;
+  fechaFin: Date | null;
+  estado: EstadoPromocion;
+  usuarioId: number;
+  creadoEn: Date;
+  actualizadoEn: Date;
+}
+
