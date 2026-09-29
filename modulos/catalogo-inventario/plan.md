@@ -19,17 +19,17 @@ Leer [spec](../../spec.md), [reglas generales](../../AGENTS.md), [reglas locales
 
 ## W2-01 Definir datos y contrato de inventario
 
-Prioridad: P0. Estado: pendiente.
+Prioridad: P0. Estado: en revisión.
 
 Dependencias: ninguna; coordinar los contratos iniciales en paralelo.
 
 Resultado: Modelo de receta y contrato de consumo acordados con ventas.
 
-- [ ] Definir ingredientes, recetas, unidades, movimientos y umbral obligatorio individual.
-- [ ] Documentar consultas de catálogo/precios y consumo con demanda agregada, errores y mismo contexto transaccional de ventas.
-- [ ] Coordinar tipos con W1-01, catálogo con el integrante 3 y bloqueos/consumo con el 4.
-- [ ] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [ ] Completar `docs/auditorias/W2-01.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [x] Definir ingredientes, recetas, unidades, movimientos y umbral obligatorio individual.
+- [x] Documentar consultas de catálogo/precios y consumo con demanda agregada, errores y mismo contexto transaccional de ventas.
+- [x] Coordinar tipos con W1-01, catálogo con el integrante 3 y bloqueos/consumo con el 4.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
+- [x] Completar `docs/auditorias/W2-01.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W2-02 Implementar catálogo y recetas
 
