@@ -39,6 +39,12 @@
   --token-amarillo-borde: #fde047;
   --token-amarillo-texto: #451a03;     /* Texto marrón oscuro para máximo contraste WCAG */
 
+  /* VARIANTE MORADO (Promociones y Descuentos - Token AGENTS.md) */
+  --token-morado: #6d28d9;
+  --token-morado-fondo: #ede9fe;
+  --token-morado-borde: #c4b5fd;
+  --gradiente-morado: linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #5b21b6 100%);
+
   /* ALERTA Y ERROR */
   --token-rojo-alerta: #dc2626;
   --token-rojo-fondo: #fef2f2;
@@ -166,6 +172,12 @@ body {
   color: #ffffff;
 }
 
+.btn-morado {
+  background: var(--gradiente-morado);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.3);
+}
+
 .btn-secundario {
   background-color: #f5f5f4;
   color: var(--color-texto);
@@ -206,6 +218,12 @@ body {
   background-color: var(--token-rojo-fondo);
   color: var(--token-rojo-alerta);
   border: 1px solid var(--token-rojo-borde);
+}
+
+.badge-morado {
+  background: var(--token-morado-fondo);
+  color: var(--token-morado);
+  border: 1px solid var(--token-morado-borde);
 }
 
 /* Contenedor principal Mobile-First */

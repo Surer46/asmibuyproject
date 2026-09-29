@@ -8,6 +8,13 @@ import {
   MovimientoInventarioDTO,
   UnidadIngrediente
 } from '../../services/inventario.service';
+import {
+  PromocionesApiService,
+  PromocionDTO,
+  TipoPromocion,
+  DuracionPromocion,
+  EstadoPromocion
+} from '../../services/promociones.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -60,6 +67,14 @@ import { AuthService } from '../../services/auth.service';
           (click)="tabActiva.set('movimientos')">
           <span class="material-symbols-rounded">history</span>
           Movimientos
+        </button>
+        <button
+          role="tab"
+          [attr.aria-selected]="tabActiva() === 'promociones'"
+          [class.activo]="tabActiva() === 'promociones'"
+          (click)="tabActiva.set('promociones')">
+          <span class="material-symbols-rounded">loyalty</span>
+          Promociones ({{ promociones().length }})
         </button>
       </div>
 
@@ -211,6 +226,101 @@ import { AuthService } from '../../services/auth.service';
                 <span>Por: <strong>{{ mov.nombreUsuario }}</strong></span>
                 <span>Fecha: {{ formatearFecha(mov.creadoEn) }}</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- PESTAÑA 4: PROMOCIONES Y DESCUENTOS                           -->
+      <!-- ============================================================= -->
+      <div *ngIf="tabActiva() === 'promociones'" class="tab-content">
+        <div class="toolbar">
+          <span class="seccion-titulo">Reglas de Promociones y Descuentos</span>
+          <button class="btn-cupertino btn-morado" (click)="abrirModalPromocion()">
+            <span class="material-symbols-rounded">add</span>
+            Nueva Promoción
+          </button>
+        </div>
+
+        <div *ngIf="cargando()" class="loading-state">
+          <span class="material-symbols-rounded icon-grande spin">progress_activity</span>
+          <p>Cargando promociones...</p>
+        </div>
+
+        <div *ngIf="!cargando() && promociones().length === 0" class="empty-state card-cupertino">
+          <span class="material-symbols-rounded icon-grande">loyalty</span>
+          <p>No hay promociones registradas aún.</p>
+          <button class="btn-cupertino btn-morado btn-sm" (click)="abrirModalPromocion()">
+            Crear Primera Promoción
+          </button>
+        </div>
+
+        <div class="lista-agrupada" *ngIf="!cargando()">
+          <div *ngFor="let promo of promociones()" class="item-fila card-cupertino">
+            <div class="fila-info">
+              <div class="fila-titulo-row">
+                <span
+                  class="badge"
+                  [ngClass]="{
+                    'badge-morado': promo.tipo === 'PORCENTAJE',
+                    'badge-verde': promo.tipo === 'NXM'
+                  }">
+                  {{ promo.tipo }}
+                </span>
+                <span
+                  class="badge"
+                  [ngClass]="{
+                    'badge-verde': promo.vigente,
+                    'badge-inactivo': !promo.vigente
+                  }">
+                  {{ promo.vigente ? 'VIGENTE' : (promo.estado === 'RETIRADA' ? 'RETIRADA' : (promo.estado === 'INACTIVA' ? 'PAUSADA' : 'NO VIGENTE')) }}
+                </span>
+                <span class="badge badge-inactivo">{{ promo.duracion }}</span>
+                <span class="item-nombre">{{ promo.nombre }}</span>
+              </div>
+              <div class="fila-detalles">
+                <span>Platillo: <strong>{{ promo.nombrePlatillo }}</strong> ($ {{ promo.precioPlatillo }})</span>
+                <span *ngIf="promo.tipo === 'PORCENTAJE'">Descuento: <strong>{{ promo.porcentaje }}%</strong></span>
+                <span *ngIf="promo.tipo === 'NXM'">Paquete: <strong>{{ promo.n }}x{{ promo.m }}</strong> (Paga {{ promo.m }}, lleva {{ promo.n }})</span>
+                <span *ngIf="promo.duracion === 'TEMPORAL'">
+                  Vigencia: {{ formatearFecha(promo.fechaInicio || '') }} a {{ formatearFecha(promo.fechaFin || '') }} (Hora local)
+                </span>
+                <span *ngIf="promo.duracion === 'PERMANENTE'">
+                  <em>Sin vencimiento</em>
+                </span>
+              </div>
+            </div>
+
+            <div class="fila-acciones" *ngIf="promo.estado !== 'RETIRADA'">
+              <button
+                class="btn-icon"
+                (click)="abrirModalEditarPromocion(promo)"
+                title="Editar Promoción"
+                aria-label="Editar">
+                <span class="material-symbols-rounded">edit</span>
+              </button>
+
+              <button
+                class="btn-icon"
+                [ngClass]="{ 'btn-peligro': promo.estado === 'ACTIVA' }"
+                (click)="conmutarEstadoPromocion(promo)"
+                [title]="promo.estado === 'ACTIVA' ? 'Pausar Promoción' : 'Activar Promoción'"
+                [attr.aria-label]="promo.estado === 'ACTIVA' ? 'Pausar' : 'Activar'">
+                <span class="material-symbols-rounded">{{ promo.estado === 'ACTIVA' ? 'pause_circle' : 'play_circle' }}</span>
+              </button>
+
+              <button
+                class="btn-icon btn-peligro"
+                (click)="confirmarRetiroPromocion(promo)"
+                title="Retirar definitivamente"
+                aria-label="Retirar">
+                <span class="material-symbols-rounded">archive</span>
+              </button>
+            </div>
+
+            <div class="fila-acciones" *ngIf="promo.estado === 'RETIRADA'">
+              <span class="badge badge-rojo">HISTÓRICO</span>
             </div>
           </div>
         </div>
@@ -476,6 +586,156 @@ import { AuthService } from '../../services/auth.service';
               <button type="button" class="btn-cupertino btn-secundario" (click)="cerrarModales()">Cancelar</button>
               <button type="submit" class="btn-cupertino btn-amarillo" [disabled]="guardando()">
                 {{ guardando() ? 'Registrando...' : 'Aplicar Ajuste' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- MODAL: FORMULARIO DE PROMOCIÓN                                -->
+      <!-- ============================================================= -->
+      <div *ngIf="mostrarModalPromocion()" class="modal-overlay">
+        <div class="modal-card card-cupertino modal-ancho">
+          <div class="modal-header">
+            <h3>{{ modoEdicionPromocion() ? 'Editar Promoción' : 'Nueva Promoción' }}</h3>
+            <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+          </div>
+
+          <form (ngSubmit)="guardarPromocion()">
+            <div class="form-group">
+              <label for="promo-nombre">Nombre de la Promoción *</label>
+              <input
+                id="promo-nombre"
+                type="text"
+                [(ngModel)]="formPromocion.nombre"
+                name="promoNombre"
+                required
+                placeholder="Ej. Martes 2x1 Clásica"
+                class="input-cupertino" />
+            </div>
+
+            <div class="form-group">
+              <label for="promo-platillo">Platillo Participante (Único) *</label>
+              <select
+                id="promo-platillo"
+                [(ngModel)]="formPromocion.platilloId"
+                name="promoPlatillo"
+                required
+                class="input-cupertino">
+                <option [ngValue]="0" disabled>Selecciona un platillo...</option>
+                <option *ngFor="let p of platillosActivos()" [ngValue]="p.id">
+                  {{ p.nombre }} ($ {{ p.precio }})
+                </option>
+              </select>
+              <small class="campo-ayuda">Por regla del contrato W3-01, una promoción aplica únicamente a un platillo.</small>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="promo-tipo">Tipo de Descuento *</label>
+                <select
+                  id="promo-tipo"
+                  [(ngModel)]="formPromocion.tipo"
+                  name="promoTipo"
+                  required
+                  class="input-cupertino">
+                  <option value="PORCENTAJE">Porcentaje (%)</option>
+                  <option value="NXM">NxM (Mismo Platillo)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="promo-duracion">Duración *</label>
+                <select
+                  id="promo-duracion"
+                  [(ngModel)]="formPromocion.duracion"
+                  name="promoDuracion"
+                  required
+                  class="input-cupertino">
+                  <option value="PERMANENTE">Permanente (Sin vencimiento)</option>
+                  <option value="TEMPORAL">Temporal (Con fecha y hora)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Campos condicionales para PORCENTAJE -->
+            <div *ngIf="formPromocion.tipo === 'PORCENTAJE'" class="form-group">
+              <label for="promo-porcentaje">Porcentaje de Descuento (1 - 100 %) *</label>
+              <input
+                id="promo-porcentaje"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="100"
+                [(ngModel)]="formPromocion.porcentaje"
+                name="promoPorcentaje"
+                placeholder="Ej. 15"
+                class="input-cupertino" />
+              <small class="campo-ayuda">Calculado sobre la línea del platillo. 100% permite total cero.</small>
+            </div>
+
+            <!-- Campos condicionales para NXM -->
+            <div *ngIf="formPromocion.tipo === 'NXM'" class="form-row-2">
+              <div class="form-group">
+                <label for="promo-n">Lleva N unidades *</label>
+                <input
+                  id="promo-n"
+                  type="number"
+                  min="2"
+                  step="1"
+                  [(ngModel)]="formPromocion.n"
+                  name="promoN"
+                  placeholder="Ej. 2 (en 2x1)"
+                  class="input-cupertino" />
+              </div>
+
+              <div class="form-group">
+                <label for="promo-m">Paga M unidades *</label>
+                <input
+                  id="promo-m"
+                  type="number"
+                  min="1"
+                  step="1"
+                  [(ngModel)]="formPromocion.m"
+                  name="promoM"
+                  placeholder="Ej. 1 (en 2x1)"
+                  class="input-cupertino" />
+              </div>
+            </div>
+            <small *ngIf="formPromocion.tipo === 'NXM'" class="campo-ayuda">
+              Debe cumplirse N > M >= 1. Las unidades entregadas consumen receta completa.
+            </small>
+
+            <!-- Campos condicionales para TEMPORAL -->
+            <div *ngIf="formPromocion.duracion === 'TEMPORAL'" class="form-row-2">
+              <div class="form-group">
+                <label for="promo-inicio">Fecha y Hora de Inicio * (Hora local)</label>
+                <input
+                  id="promo-inicio"
+                  type="datetime-local"
+                  [(ngModel)]="formPromocion.fechaInicioLocal"
+                  name="promoInicio"
+                  class="input-cupertino" />
+                <small class="campo-ayuda">Inicio inclusivo</small>
+              </div>
+
+              <div class="form-group">
+                <label for="promo-fin">Fecha y Hora de Fin * (Hora local)</label>
+                <input
+                  id="promo-fin"
+                  type="datetime-local"
+                  [(ngModel)]="formPromocion.fechaFinLocal"
+                  name="promoFin"
+                  class="input-cupertino" />
+                <small class="campo-ayuda">Fin exclusivo</small>
+              </div>
+            </div>
+
+            <div class="modal-acciones">
+              <button type="button" class="btn-cupertino btn-secundario" (click)="cerrarModales()">Cancelar</button>
+              <button type="submit" class="btn-cupertino btn-morado" [disabled]="guardando()">
+                {{ guardando() ? 'Guardando...' : (modoEdicionPromocion() ? 'Actualizar' : 'Crear Promoción') }}
               </button>
             </div>
           </form>
@@ -788,10 +1048,15 @@ import { AuthService } from '../../services/auth.service';
       align-items: center;
       gap: 8px;
     }
-    .grid-dos-cols {
+    .grid-dos-cols, .form-row-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+    }
+    .campo-ayuda {
+      font-size: 0.78rem;
+      color: var(--color-texto-secundario);
+      margin-top: 4px;
     }
 
     /* Receta Builder */
@@ -851,10 +1116,11 @@ import { AuthService } from '../../services/auth.service';
 })
 export class GestionComponent implements OnInit {
   private api = inject(InventarioApiService);
+  private promocionesApi = inject(PromocionesApiService);
   authService = inject(AuthService);
 
   // Estados y Signals
-  tabActiva = signal<'ingredientes' | 'platillos' | 'movimientos'>('ingredientes');
+  tabActiva = signal<'ingredientes' | 'platillos' | 'movimientos' | 'promociones'>('ingredientes');
   cargando = signal<boolean>(false);
   guardando = signal<boolean>(false);
   mensajeExito = signal<string>('');
@@ -863,6 +1129,23 @@ export class GestionComponent implements OnInit {
   ingredientes = signal<IngredienteDTO[]>([]);
   platillos = signal<PlatilloDTO[]>([]);
   movimientos = signal<MovimientoInventarioDTO[]>([]);
+  promociones = signal<PromocionDTO[]>([]);
+
+  // Modales Promociones
+  mostrarModalPromocion = signal<boolean>(false);
+  modoEdicionPromocion = signal<boolean>(false);
+  promocionSeleccionadaId = signal<number | null>(null);
+  formPromocion = {
+    nombre: '',
+    platilloId: 0,
+    tipo: 'PORCENTAJE' as TipoPromocion,
+    porcentaje: '15',
+    n: 2,
+    m: 1,
+    duracion: 'PERMANENTE' as DuracionPromocion,
+    fechaInicioLocal: '',
+    fechaFinLocal: ''
+  };
 
   // Modales
   mostrarModalIngrediente = signal<boolean>(false);
@@ -925,10 +1208,19 @@ export class GestionComponent implements OnInit {
       next: (movs) => this.movimientos.set(movs),
       error: () => {}
     });
+
+    this.promocionesApi.listarPromociones().subscribe({
+      next: (promos) => this.promociones.set(promos),
+      error: () => {}
+    });
   }
 
   ingredientesActivos(): IngredienteDTO[] {
     return this.ingredientes().filter((i) => i.activo);
+  }
+
+  platillosActivos(): PlatilloDTO[] {
+    return this.platillos().filter((p) => p.activo);
   }
 
   // --- ACCIONES INGREDIENTE ---
@@ -1174,11 +1466,172 @@ export class GestionComponent implements OnInit {
     });
   }
 
+  // --- ACCIONES PROMOCIONES ---
+  abrirModalPromocion(): void {
+    this.modoEdicionPromocion.set(false);
+    this.promocionSeleccionadaId.set(null);
+    const ahora = new Date();
+    const manana = new Date(ahora.getTime() + 24 * 60 * 60 * 1000);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const isoLocal = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    this.formPromocion = {
+      nombre: '',
+      platilloId: this.platillosActivos().length > 0 ? this.platillosActivos()[0].id : 0,
+      tipo: 'PORCENTAJE',
+      porcentaje: '15',
+      n: 2,
+      m: 1,
+      duracion: 'PERMANENTE',
+      fechaInicioLocal: isoLocal(ahora),
+      fechaFinLocal: isoLocal(manana)
+    };
+    this.mostrarModalPromocion.set(true);
+  }
+
+  abrirModalEditarPromocion(promo: PromocionDTO): void {
+    this.modoEdicionPromocion.set(true);
+    this.promocionSeleccionadaId.set(promo.id);
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const isoLocal = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    this.formPromocion = {
+      nombre: promo.nombre,
+      platilloId: promo.platilloId,
+      tipo: promo.tipo,
+      porcentaje: promo.porcentaje || '15',
+      n: promo.n || 2,
+      m: promo.m || 1,
+      duracion: promo.duracion,
+      fechaInicioLocal: promo.fechaInicio ? isoLocal(new Date(promo.fechaInicio)) : '',
+      fechaFinLocal: promo.fechaFin ? isoLocal(new Date(promo.fechaFin)) : ''
+    };
+    this.mostrarModalPromocion.set(true);
+  }
+
+  guardarPromocion(): void {
+    if (!this.formPromocion.nombre.trim()) {
+      this.mostrarError('El nombre de la promoción es obligatorio.');
+      return;
+    }
+    if (!this.formPromocion.platilloId || this.formPromocion.platilloId <= 0) {
+      this.mostrarError('Debes seleccionar un platillo participante.');
+      return;
+    }
+
+    let payload: any = {
+      nombre: this.formPromocion.nombre.trim(),
+      platilloId: this.formPromocion.platilloId,
+      tipo: this.formPromocion.tipo,
+      duracion: this.formPromocion.duracion
+    };
+
+    if (this.formPromocion.tipo === 'PORCENTAJE') {
+      const p = Number(this.formPromocion.porcentaje);
+      if (isNaN(p) || p <= 0 || p > 100) {
+        this.mostrarError('El porcentaje debe ser un número entre 0.01 y 100.');
+        return;
+      }
+      payload.porcentaje = this.formPromocion.porcentaje;
+    } else {
+      const n = Number(this.formPromocion.n);
+      const m = Number(this.formPromocion.m);
+      if (!Number.isInteger(n) || !Number.isInteger(m) || m < 1 || n <= m) {
+        this.mostrarError('Para promociones NxM debe cumplirse que N y M sean enteros con N > M >= 1.');
+        return;
+      }
+      payload.n = n;
+      payload.m = m;
+    }
+
+    if (this.formPromocion.duracion === 'TEMPORAL') {
+      if (!this.formPromocion.fechaInicioLocal || !this.formPromocion.fechaFinLocal) {
+        this.mostrarError('Las promociones temporales requieren fecha y hora de inicio y fin.');
+        return;
+      }
+      const ini = new Date(this.formPromocion.fechaInicioLocal);
+      const fin = new Date(this.formPromocion.fechaFinLocal);
+      if (isNaN(ini.getTime()) || isNaN(fin.getTime()) || ini.getTime() >= fin.getTime()) {
+        this.mostrarError('La fecha de inicio debe ser anterior a la fecha de fin.');
+        return;
+      }
+      payload.fechaInicio = ini.toISOString();
+      payload.fechaFin = fin.toISOString();
+    }
+
+    this.guardando.set(true);
+    if (this.modoEdicionPromocion() && this.promocionSeleccionadaId()) {
+      this.promocionesApi.actualizarPromocion(this.promocionSeleccionadaId()!, payload).subscribe({
+        next: () => {
+          this.mostrarExito('Promoción actualizada exitosamente.');
+          this.cerrarModales();
+          this.cargarDatos();
+        },
+        error: (err) => {
+          this.mostrarError(err.error?.mensaje || 'Error al actualizar promoción.');
+          this.guardando.set(false);
+        }
+      });
+    } else {
+      this.promocionesApi.crearPromocion(payload).subscribe({
+        next: () => {
+          this.mostrarExito('Promoción creada exitosamente.');
+          this.cerrarModales();
+          this.cargarDatos();
+        },
+        error: (err) => {
+          this.mostrarError(err.error?.mensaje || 'Error al crear promoción.');
+          this.guardando.set(false);
+        }
+      });
+    }
+  }
+
+  conmutarEstadoPromocion(promo: PromocionDTO): void {
+    const nuevoEstado = promo.estado === 'ACTIVA' ? 'INACTIVA' : 'ACTIVA';
+    this.guardando.set(true);
+    this.promocionesApi.cambiarEstado(promo.id, nuevoEstado).subscribe({
+      next: () => {
+        this.mostrarExito(`Promoción ${nuevoEstado === 'ACTIVA' ? 'activada' : 'pausada'} con éxito.`);
+        this.guardando.set(false);
+        this.cargarDatos();
+      },
+      error: (err) => {
+        this.mostrarError(err.error?.mensaje || 'Error al cambiar estado.');
+        this.guardando.set(false);
+      }
+    });
+  }
+
+  confirmarRetiroPromocion(promo: PromocionDTO): void {
+    const seguro = confirm(
+      `¿Confirmas el retiro definitivo de la promoción '${promo.nombre}'?\n\nEsta acción es una baja lógica inmutable: la regla se conserva en el historial pero no podrá volver a activarse ni aplicarse en ventas futuras.`
+    );
+    if (!seguro) return;
+
+    this.guardando.set(true);
+    this.promocionesApi.retirarPromocion(promo.id).subscribe({
+      next: () => {
+        this.mostrarExito('Promoción retirada definitivamente.');
+        this.guardando.set(false);
+        this.cargarDatos();
+      },
+      error: (err) => {
+        this.mostrarError(err.error?.mensaje || 'Error al retirar promoción.');
+        this.guardando.set(false);
+      }
+    });
+  }
+
   cerrarModales(): void {
     this.mostrarModalIngrediente.set(false);
     this.mostrarModalPlatillo.set(false);
     this.mostrarModalEntrada.set(false);
     this.mostrarModalAjuste.set(false);
+    this.mostrarModalPromocion.set(false);
     this.guardando.set(false);
   }
 
