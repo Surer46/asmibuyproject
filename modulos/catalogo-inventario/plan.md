@@ -89,14 +89,14 @@ Resultado: Una condición de bajo stock por ingrediente, visible dentro de la we
 
 ## W2-06 Verificar inventario integrado
 
-Prioridad: P1. Estado: pendiente.
+Prioridad: P1. Estado: en revisión.
 
 Dependencias: W2-04, W2-05, W4-03.
 
 Resultado: Ventas y movimientos coinciden con existencias y alertas reales.
 
-- [ ] Contrastar saldos y movimientos para recetas compartidas, promociones y reintentos de cobro.
-- [ ] Verificar dos mínimos diferentes, igualdad exacta, cero, reposición y cambios de mínimo.
-- [ ] Entregar evidencias web móvil y contrato definitivo al integrante 1.
-- [ ] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [ ] Completar `docs/auditorias/W2-06.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [x] Contrastar saldos y movimientos para recetas compartidas, promociones y reintentos de cobro.
+- [x] Verificar dos mínimos diferentes, igualdad exacta, cero, reposición y cambios de mínimo.
+- [x] Entregar evidencias web móvil y contrato definitivo al integrante 1.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
+- [x] Completar `docs/auditorias/W2-06.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
