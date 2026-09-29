@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { healthRouter } from './routes/health.routes';
 import { authRouter } from './routes/auth.routes';
 import { catalogoRouter } from './routes/catalogo.routes';
+import { inventarioRouter } from './routes/inventario.routes';
 import { verificarSesion, validarCSRF } from './middlewares/auth.middleware';
 import { probarConexionBD } from './config/database';
 
@@ -31,6 +32,7 @@ app.use(validarCSRF);
 app.use('/api/v1', healthRouter);
 app.use('/api/v1', authRouter);
 app.use('/api/v1', catalogoRouter);
+app.use('/api/v1', inventarioRouter);
 
 // Manejador de rutas no encontradas (404)
 app.use('*', (_req, res) => {

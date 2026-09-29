@@ -75,65 +75,11 @@ export class ErrorCatalogo extends Error {
   }
 }
 
-// =========================================================================
-// ALMACÉN EN MEMORIA (FALLBACK PARA DESARROLLO SIN DATABASE_URL)
-// =========================================================================
-interface IngredienteInterno {
-  id: number;
-  nombre: string;
-  unidad: UnidadIngrediente;
-  minimo: Decimal;
-  activo: boolean;
-}
+import { almacenMemoria } from './almacen-memoria';
 
-interface PlatilloInterno {
-  id: number;
-  nombre: string;
-  precio: Decimal;
-  activo: boolean;
-}
-
-interface RecetaDetalleInterno {
-  platilloId: number;
-  ingredienteId: number;
-  cantidad: Decimal;
-}
-
-interface MovimientoInterno {
-  id: number;
-  ingredienteId: number;
-  tipo: 'ENTRADA' | 'AJUSTE' | 'CONSUMO_VENTA';
-  cantidad: Decimal;
-  motivo: string;
-  usuarioId: number;
-  ordenId?: number | null;
-}
-
-let ingredientesMemoria: IngredienteInterno[] = [
-  { id: 1, nombre: 'Pan de Hamburguesa', unidad: 'pieza', minimo: new Decimal(20), activo: true },
-  { id: 2, nombre: 'Carne de Res', unidad: 'g', minimo: new Decimal(2000), activo: true },
-  { id: 3, nombre: 'Queso Amarillo', unidad: 'pieza', minimo: new Decimal(15), activo: true },
-  { id: 4, nombre: 'Papas Congeladas', unidad: 'g', minimo: new Decimal(1000), activo: true }
-];
-
-let platillosMemoria: PlatilloInterno[] = [
-  { id: 1, nombre: 'Hamburguesa Clásica', precio: new Decimal('120.00'), activo: true }
-];
-
-let recetasMemoria: RecetaDetalleInterno[] = [
-  { platilloId: 1, ingredienteId: 1, cantidad: new Decimal(1) },
-  { platilloId: 1, ingredienteId: 2, cantidad: new Decimal(150) },
-  { platilloId: 1, ingredienteId: 3, cantidad: new Decimal(1) }
-];
-
-let movimientosMemoria: MovimientoInterno[] = [
-  { id: 1, ingredienteId: 1, tipo: 'ENTRADA', cantidad: new Decimal(50), motivo: 'Stock inicial', usuarioId: 1 },
-  { id: 2, ingredienteId: 2, tipo: 'ENTRADA', cantidad: new Decimal(5000), motivo: 'Stock inicial', usuarioId: 1 },
-  { id: 3, ingredienteId: 3, tipo: 'ENTRADA', cantidad: new Decimal(40), motivo: 'Stock inicial', usuarioId: 1 }
-];
-
-let proxIngredienteId = 5;
-let proxPlatilloId = 2;
+const ingredientesMemoria = almacenMemoria.ingredientes;
+const platillosMemoria = almacenMemoria.platillos;
+const movimientosMemoria = almacenMemoria.movimientos;
 
 export class CatalogoService {
   /**
@@ -351,8 +297,8 @@ export class CatalogoService {
       throw new ErrorCatalogo('DATOS_INVALIDOS', `Ya existe un ingrediente registrado con el nombre "${nombre}".`);
     }
 
-    const nuevoIng: IngredienteInterno = {
-      id: proxIngredienteId++,
+    const nuevoIng = {
+      id: almacenMemoria.proxIngredienteId++,
       nombre,
       unidad: input.unidad,
       minimo: minimoDec,
@@ -411,7 +357,7 @@ export class CatalogoService {
       }
 
       // Validación en memoria
-      const tieneRecetas = recetasMemoria.some((r) => r.ingredienteId === id);
+      const tieneRecetas = almacenMemoria.recetas.some((r) => r.ingredienteId === id);
       const tieneMovimientos = movimientosMemoria.some((m) => m.ingredienteId === id);
       if (tieneRecetas || tieneMovimientos) {
         throw new ErrorCatalogo(
@@ -451,7 +397,7 @@ export class CatalogoService {
       }
 
       // Validación en memoria
-      const platillosActivosConIng = recetasMemoria
+      const platillosActivosConIng = almacenMemoria.recetas
         .filter((r) => r.ingredienteId === id)
         .map((r) => platillosMemoria.find((p) => p.id === r.platilloId))
         .filter((p) => p && p.activo);
@@ -584,7 +530,7 @@ export class CatalogoService {
     return platillosMemoria
       .sort((a, b) => a.nombre.localeCompare(b.nombre))
       .map((p) => {
-        const ingredientesReceta = recetasMemoria.filter((r) => r.platilloId === p.id);
+        const ingredientesReceta = almacenMemoria.recetas.filter((r) => r.platilloId === p.id);
         const tieneIngredientes = ingredientesReceta.length > 0;
 
         const ingredientesCompletos = ingredientesReceta.map((r) => {
@@ -672,7 +618,7 @@ export class CatalogoService {
     const p = platillosMemoria.find((item) => item.id === id);
     if (!p) return null;
 
-    const ingredientesReceta = recetasMemoria.filter((r) => r.platilloId === p.id);
+    const ingredientesReceta = almacenMemoria.recetas.filter((r) => r.platilloId === p.id);
     const tieneIngredientes = ingredientesReceta.length > 0;
 
     const ingredientesCompletos = ingredientesReceta.map((r) => {
@@ -788,8 +734,8 @@ export class CatalogoService {
       this.validarCantidadPorUnidad(cantDec, ing.unidad, `cantidad de "${ing.nombre}"`);
     }
 
-    const nuevoPlatillo: PlatilloInterno = {
-      id: proxPlatilloId++,
+    const nuevoPlatillo = {
+      id: almacenMemoria.proxPlatilloId++,
       nombre,
       precio: precioDec,
       activo: true
@@ -797,7 +743,7 @@ export class CatalogoService {
     platillosMemoria.push(nuevoPlatillo);
 
     for (const item of input.receta) {
-      recetasMemoria.push({
+      almacenMemoria.recetas.push({
         platilloId: nuevoPlatillo.id,
         ingredienteId: item.ingredienteId,
         cantidad: new Decimal(item.cantidad)
@@ -917,9 +863,9 @@ export class CatalogoService {
         this.validarCantidadPorUnidad(cantDec, ing.unidad, `cantidad de "${ing.nombre}"`);
       }
 
-      recetasMemoria = recetasMemoria.filter((r) => r.platilloId !== id);
+      almacenMemoria.recetas = almacenMemoria.recetas.filter((r) => r.platilloId !== id);
       for (const item of input.receta) {
-        recetasMemoria.push({
+        almacenMemoria.recetas.push({
           platilloId: id,
           ingredienteId: item.ingredienteId,
           cantidad: new Decimal(item.cantidad)

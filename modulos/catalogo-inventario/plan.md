@@ -47,17 +47,17 @@ Resultado: API de ingredientes y platillos con recetas válidas.
 
 ## W2-03 Implementar movimientos y consumo
 
-Prioridad: P0. Estado: pendiente.
+Prioridad: P0. Estado: en revisión.
 
 Dependencias: W2-02.
 
 Resultado: Entradas, ajustes y ventas mantienen el saldo sin negativos.
 
-- [ ] Registrar stock inicial, entradas y ajustes con autor, fecha, cantidad y motivo.
-- [ ] Entregar consumo de toda la orden en la transacción de ventas, con bloqueo estable de ingredientes.
-- [ ] Probar PostgreSQL real: demanda compartida, rollback, unidades gratuitas y rechazo por insuficiencia.
-- [ ] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [ ] Completar `docs/auditorias/W2-03.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [x] Registrar stock inicial, entradas y ajustes con autor, fecha, cantidad y motivo.
+- [x] Entregar consumo de toda la orden en la transacción de ventas, con bloqueo estable de ingredientes.
+- [x] Probar PostgreSQL real: demanda compartida, rollback, unidades gratuitas y rechazo por insuficiencia.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
+- [x] Completar `docs/auditorias/W2-03.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W2-04 Crear pantallas de gestión
 
