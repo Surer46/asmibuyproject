@@ -8,7 +8,7 @@ import { catalogoRouter } from './routes/catalogo.routes';
 import { inventarioRouter } from './routes/inventario.routes';
 import { promocionesRouter } from './routes/promociones.routes';
 import { ventasRouter } from './routes/ventas.routes';
-import { verificarSesion, validarCSRF } from './middlewares/auth.middleware';
+import { verificarSesion, validarCSRF, esOrigenPermitido } from './middlewares/auth.middleware';
 import { probarConexionBD } from './config/database';
 
 dotenv.config();
@@ -16,9 +16,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middlewares estándar
+// Middlewares estándar con restricción de orígenes permitidos
 app.use(cors({
-  origin: true, // Refleja el origen solicitante (permite localhost y la IP de red local del móvil)
+  origin: (origin, callback) => {
+    if (!origin || esOrigenPermitido(origin)) {
+      callback(null, origin || true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true
 }));
 app.use(express.json());

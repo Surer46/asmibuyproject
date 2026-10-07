@@ -11,19 +11,54 @@ declare global {
   }
 }
 
+export function esOrigenPermitido(origin?: string): boolean {
+  if (!origin) return true;
+
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return true;
+    }
+
+    const origenesConfigurados = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+      : [];
+    if (origenesConfigurados.includes(origin) || origenesConfigurados.includes(parsed.origin)) {
+      return true;
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      const esIpPrivada = /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$/.test(host);
+      if (esIpPrivada) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Middleware para extraer y verificar la sesión desde la cookie HttpOnly
  */
 export async function verificarSesion(req: Request, _res: Response, next: NextFunction) {
-  const sesionId = req.cookies?.asmibuy_session;
-  if (!sesionId) {
+  const sesionToken = req.cookies?.asmibuy_session;
+  if (!sesionToken) {
     return next();
   }
 
-  const { valida, usuario } = await AuthService.validarSesion(sesionId);
-  if (valida && usuario) {
-    req.usuario = usuario;
-    req.sesionId = sesionId;
+  try {
+    const { valida, usuario } = await AuthService.validarSesion(sesionToken);
+    if (valida && usuario) {
+      req.usuario = usuario;
+      req.sesionId = sesionToken;
+    }
+  } catch (err: any) {
+    console.error('Error al verificar sesión en base de datos:', err.message);
   }
   next();
 }
@@ -75,6 +110,24 @@ export function validarCSRF(req: Request, res: Response, next: NextFunction) {
   // Rutas exentas de CSRF (como el propio login inicial)
   if (req.path === '/api/v1/auth/login' || req.path === '/auth/login') {
     return next();
+  }
+
+  // Validar origen si la cabecera Origin o Referer está presente
+  let originHeader: string | undefined = req.headers.origin as string;
+  if (!originHeader && req.headers.referer) {
+    try {
+      originHeader = new URL(req.headers.referer).origin;
+    } catch {
+      // Ignorar URL malformada
+    }
+  }
+
+  if (originHeader && !esOrigenPermitido(originHeader)) {
+    return res.status(403).json({
+      codigo: 'ORIGEN_NO_PERMITIDO',
+      mensaje: 'Petición rechazada: El origen de la petición no está autorizado.',
+      detalles: null
+    });
   }
 
   const csrfHeader = req.headers['x-csrf-token'];

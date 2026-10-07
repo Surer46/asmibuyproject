@@ -1,61 +1,106 @@
 /* =========================================================================
-   DISEÑO COMPARTIDO ASMIBUY (PALETA DINÁMICA: VERDE, NARANJA Y AMARILLO)
-   MOBILE-FIRST PRIORITARIO - INSPIRACIÓN CUPERTINO & DEGRADADOS VIBRANTES
+   DISEÑO COMPARTIDO ASMIBUY (SPEC v2.1 & AGENTS.md)
+   TOKENS OBLIGATORIOS, FUENTES LOCALES Y NAVEGACIÓN CUPERTINO WEB MÓVIL
    ========================================================================= */
 
+/* Fuentes locales con licencia Apache 2.0 en public/fonts/ */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/roboto-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/roboto-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/roboto-700.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url('/fonts/material-symbols-rounded.ttf') format('truetype');
+}
+
 :root {
-  /* Tokens de Superficie y Neutros Estilo iOS */
-  --color-fondo: #f8faf9;            /* Fondo neutro con sutil calidez */
-  --color-superficie: #ffffff;        /* Blanco para tarjetas y contenedores */
-  --color-texto: #1c1917;             /* Texto primario de alto contraste */
-  --color-texto-secundario: #78716c;  /* Gris cálido para subtítulos y metadatos */
-  --color-borde: #e7e5e4;             /* Divisores suaves */
+  /* =========================================================================
+     TOKENS OBLIGATORIOS AGENTS.md (CONTRATO VISUAL MVP)
+     ========================================================================= */
+  --color-primaria-exito: #166534;    /* Guardar y confirmar, texto blanco (#FFFFFF) */
+  --color-acento: #6D28D9;            /* Selección y promociones, texto blanco en sólido */
+  --color-error: #B91C1C;             /* Errores, agotado y anular, texto blanco en sólido */
+  --color-advertencia: #FACC15;       /* Bajo stock con texto #713F12 (NUNCA blanco) */
+  --color-advertencia-texto: #713F12; /* Contraste accesible sobre #FACC15 */
 
-  /* DEGRADADOS DINÁMICOS */
-  --gradiente-naranja-amarillo: linear-gradient(135deg, #ff6b35 0%, #f97316 45%, #ffb703 100%);
-  --gradiente-naranja-hover: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
-  --gradiente-verde-fresco: linear-gradient(135deg, #059669 0%, #10b981 60%, #34d399 100%);
-  --gradiente-verde-hover: linear-gradient(135deg, #047857 0%, #059669 100%);
-  --gradiente-amarillo-dorado: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
-  --gradiente-citrico-suave: linear-gradient(135deg, #fff7ed 0%, #fefce8 100%);
-  --gradiente-marca-tricolor: linear-gradient(90deg, #10b981 0%, #f97316 50%, #eab308 100%);
+  --color-fondo: #F7F8FA;             /* Fondo general */
+  --color-superficie: #FFFFFF;         /* Contenido y tarjetas */
+  --color-texto: #1F2937;             /* Texto principal (contraste >= 4.5:1) */
+  --color-texto-secundario: #4B5563;  /* Texto secundario sobre fondos claros */
 
-  /* VARIANTES DE NARANJA (Acento Principal de Marca y Acción) */
-  --token-naranja-primario: #f97316;
-  --token-naranja-oscuro: #ea580c;
-  --token-naranja-fondo: #fff7ed;
-  --token-naranja-borde: #fed7aa;
+  /* Superficies suaves obligatorias */
+  --superficie-verde: #DCFCE7;
+  --superficie-morado: #EDE9FE;
+  --superficie-rojo: #FEE2E2;
+  --superficie-amarillo: #FEF9C3;
 
-  /* VARIANTES DE VERDE (Confirmación, Éxito y Stock Normal) */
-  --token-verde-confirmar: #10b981;
-  --token-verde-oscuro: #047857;
-  --token-verde-fondo: #ecfdf5;
-  --token-verde-borde: #a7f3d0;
+  /* Borde de control sobre fondo claro */
+  --borde-control: #6B7280;
+  --color-borde: #E5E7EB;
 
-  /* VARIANTES DE AMARILLO (Avisos, Atención y Alertas) */
-  --token-amarillo-aviso: #f59e0b;
-  --token-amarillo-dorado: #eab308;
-  --token-amarillo-fondo: #fefce8;
-  --token-amarillo-borde: #fde047;
-  --token-amarillo-texto: #451a03;     /* Texto marrón oscuro para máximo contraste WCAG */
+  /* Aliases de compatibilidad con componentes existentes */
+  --token-verde-confirmar: var(--color-primaria-exito);
+  --token-verde-oscuro: #14532D;
+  --token-verde-fondo: var(--superficie-verde);
+  --token-verde-borde: var(--color-primaria-exito);
 
-  /* VARIANTE MORADO (Promociones y Descuentos - Token AGENTS.md) */
-  --token-morado: #6d28d9;
-  --token-morado-fondo: #ede9fe;
-  --token-morado-borde: #c4b5fd;
-  --gradiente-morado: linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #5b21b6 100%);
+  --token-naranja-primario: var(--color-primaria-exito);
+  --token-naranja-oscuro: #14532D;
+  --token-naranja-fondo: var(--superficie-verde);
+  --token-naranja-borde: var(--color-primaria-exito);
 
-  /* ALERTA Y ERROR */
-  --token-rojo-alerta: #dc2626;
-  --token-rojo-fondo: #fef2f2;
-  --token-rojo-borde: #fecaca;
+  --token-morado: var(--color-acento);
+  --token-morado-fondo: var(--superficie-morado);
+  --token-morado-borde: var(--color-acento);
 
-  /* Dimensiones y Ergonomía Móvil */
-  --radio-borde: 16px;
-  --touch-target-min: 48px;           /* Mínimo 48px para ergonomía táctil */
-  --sombra-cupertino: 0 2px 10px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.08);
-  --sombra-vibrante-naranja: 0 4px 16px rgba(249, 115, 22, 0.28);
-  --sombra-vibrante-verde: 0 4px 16px rgba(16, 185, 129, 0.28);
+  --token-amarillo-aviso: var(--color-advertencia);
+  --token-amarillo-fondo: var(--superficie-amarillo);
+  --token-amarillo-borde: var(--color-advertencia);
+  --token-amarillo-texto: var(--color-advertencia-texto);
+
+  --token-rojo-alerta: var(--color-error);
+  --token-rojo-fondo: var(--superficie-rojo);
+  --token-rojo-borde: var(--color-error);
+
+  /* Degradados sobrios acordes a los tokens de AGENTS.md */
+  --gradiente-naranja-amarillo: linear-gradient(135deg, #166534 0%, #15803d 100%);
+  --gradiente-naranja-hover: linear-gradient(135deg, #14532d 0%, #166534 100%);
+  --gradiente-verde-fresco: linear-gradient(135deg, #166534 0%, #15803d 100%);
+  --gradiente-verde-hover: linear-gradient(135deg, #14532d 0%, #166534 100%);
+  --gradiente-amarillo-dorado: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+  --gradiente-citrico-suave: linear-gradient(135deg, #dcfce7 0%, #fef9c3 100%);
+  --gradiente-marca-tricolor: linear-gradient(90deg, #166534 0%, #6d28d9 100%);
+  --gradiente-morado: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+
+  /* Ergonomía táctil y diseño adaptable desde 360 px */
+  --radio-borde: 14px;
+  --touch-target-min: 44px; /* Mínimo 44 por 44 px según AGENTS.md */
+  --sombra-cupertino: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --sombra-vibrante-naranja: 0 4px 12px rgba(22, 101, 52, 0.25);
+  --sombra-vibrante-verde: 0 4px 12px rgba(22, 101, 52, 0.25);
   --safe-bottom: env(safe-area-inset-bottom, 12px);
   --safe-top: env(safe-area-inset-top, 0px);
 }
@@ -84,27 +129,29 @@ body {
   touch-action: manipulation;
 }
 
-/* Indicador de foco accesible con tono naranja cálido */
+/* Indicador de foco accesible con token primario */
 :focus-visible {
-  outline: 3px solid var(--token-naranja-primario);
+  outline: 3px solid var(--color-primaria-exito);
   outline-offset: 2px;
 }
 
-/* Iconos de Material Symbols Rounded */
+/* Iconos de Material Symbols Rounded alojados */
 .material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   vertical-align: middle;
   line-height: 1;
   display: inline-block;
   user-select: none;
   -webkit-user-select: none;
+  font-size: 24px;
 }
 
 .material-symbols-rounded.filled {
   font-variation-settings: 'FILL' 1;
 }
 
-/* Tarjeta Cupertino Reutilizable con esquinas suaves */
+/* Tarjeta Cupertino Reutilizable */
 .card-cupertino {
   background: var(--color-superficie);
   border-radius: var(--radio-borde);
@@ -114,11 +161,12 @@ body {
   margin-bottom: 14px;
 }
 
-/* Botones Accesibles Táctiles con Degradados Dinámicos (Mínimo 48px) */
+/* Botones Accesibles Táctiles (Mínimo 44 por 44 px) */
 .btn-cupertino {
   min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
   padding: 12px 22px;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 1rem;
   font-weight: 600;
   border: none;
@@ -127,106 +175,113 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.15s ease;
+  transition: transform 0.12s ease, opacity 0.12s ease;
   font-family: inherit;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .btn-cupertino:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
   opacity: 0.92;
 }
 
-/* Botón Principal (Degradado Naranja a Amarillo Sol) */
-.btn-naranja, .btn-primario {
-  background: var(--gradiente-naranja-amarillo);
-  color: #ffffff;
-  box-shadow: var(--sombra-vibrante-naranja);
+/* Botón Primario y Confirmación (#166534 con texto blanco) */
+.btn-naranja, .btn-primario, .btn-verde {
+  background-color: var(--color-primaria-exito);
+  color: #FFFFFF;
 }
 
-.btn-naranja:hover, .btn-primario:hover {
-  background: var(--gradiente-naranja-hover);
+.btn-naranja:hover, .btn-primario:hover, .btn-verde:hover {
+  background-color: #14532D;
 }
 
-/* Botón Verde (Degradado Verde Esmeralda a Menta) */
-.btn-verde {
-  background: var(--gradiente-verde-fresco);
-  color: #ffffff;
-  box-shadow: var(--sombra-vibrante-verde);
+/* Botón Acento / Promociones (#6D28D9 con texto blanco) */
+.btn-morado, .btn-acento {
+  background-color: var(--color-acento);
+  color: #FFFFFF;
 }
 
-.btn-verde:hover {
-  background: var(--gradiente-verde-hover);
+.btn-morado:hover, .btn-acento:hover {
+  background-color: #5B21B6;
 }
 
-/* Botón Amarillo / Advertencia */
-.btn-amarillo {
-  background: var(--gradiente-amarillo-dorado);
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+/* Botón Error / Anular (#B91C1C con texto blanco) */
+.btn-rojo, .btn-peligro {
+  background-color: var(--color-error);
+  color: #FFFFFF;
 }
 
-.btn-rojo {
-  background-color: var(--token-rojo-alerta);
-  color: #ffffff;
+.btn-rojo:hover, .btn-peligro:hover {
+  background-color: #991B1B;
 }
 
-.btn-morado {
-  background: var(--gradiente-morado);
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.3);
+/* Botón Advertencia / Bajo Stock (#FACC15 con texto #713F12 - NUNCA blanco) */
+.btn-amarillo, .btn-alerta {
+  background-color: var(--color-advertencia);
+  color: var(--color-advertencia-texto);
+}
+
+.btn-amarillo:hover, .btn-alerta:hover {
+  background-color: #EAB308;
 }
 
 .btn-secundario {
-  background-color: #f5f5f4;
+  background-color: #F3F4F6;
   color: var(--color-texto);
-  border: 1px solid var(--color-borde);
+  border: 1px solid var(--borde-control);
 }
 
-/* Badges / Píldoras de estado con degradados y variantes */
+/* Badges y etiquetas con superficies suaves */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
   border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 .badge-verde {
-  background: var(--gradiente-verde-fresco);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+  background-color: var(--superficie-verde);
+  color: var(--color-primaria-exito);
+  border: 1px solid var(--color-primaria-exito);
 }
 
 .badge-amarillo {
-  background: var(--gradiente-amarillo-dorado);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+  background-color: var(--superficie-amarillo);
+  color: var(--color-advertencia-texto);
+  border: 1px solid var(--color-advertencia);
 }
 
 .badge-naranja {
-  background: var(--gradiente-naranja-amarillo);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.25);
+  background-color: var(--superficie-verde);
+  color: var(--color-primaria-exito);
+  border: 1px solid var(--color-primaria-exito);
 }
 
 .badge-rojo {
-  background-color: var(--token-rojo-fondo);
-  color: var(--token-rojo-alerta);
-  border: 1px solid var(--token-rojo-borde);
+  background-color: var(--superficie-rojo);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
 }
 
 .badge-morado {
-  background: var(--token-morado-fondo);
-  color: var(--token-morado);
-  border: 1px solid var(--token-morado-borde);
+  background-color: var(--superficie-morado);
+  color: var(--color-acento);
+  border: 1px solid var(--color-acento);
 }
 
-/* Contenedor principal Mobile-First */
+/* Controles de formulario con borde accesible */
+input, select, textarea {
+  border: 1px solid var(--borde-control);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* Contenedor principal Mobile-First adaptable desde 360 px */
 .app-container {
   width: 100%;
   max-width: 900px;

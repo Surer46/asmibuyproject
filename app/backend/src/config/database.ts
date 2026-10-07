@@ -5,13 +5,37 @@ dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
 
+function obtenerConfiguracionSSL(): boolean | { rejectUnauthorized: boolean; ca?: string } {
+  if (!connectionString) return false;
+  if (
+    process.env.DB_SSL === 'false' ||
+    connectionString.includes('sslmode=disable') ||
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1')
+  ) {
+    return false;
+  }
+
+  // Por defecto verificar certificados para evitar ataques de intermediario (MITM)
+  const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+  const sslConfig: { rejectUnauthorized: boolean; ca?: string } = {
+    rejectUnauthorized
+  };
+
+  if (process.env.DB_SSL_CA) {
+    sslConfig.ca = process.env.DB_SSL_CA;
+  }
+
+  return sslConfig;
+}
+
 // Configuración de pool con límites de Supabase Free (5-10 conexiones máximo)
 export const pool = new Pool({
   connectionString: connectionString || undefined,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  ssl: connectionString ? { rejectUnauthorized: false } : false
+  ssl: obtenerConfiguracionSSL()
 });
 
 pool.on('error', (err) => {

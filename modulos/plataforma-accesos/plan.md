@@ -15,7 +15,7 @@ Leer [spec](../../spec.md), [reglas generales](../../AGENTS.md), [reglas locales
 | W1-03 | P0 | Implementar acceso sencillo | W1-02 |
 | W1-04 | P0 | Entregar navegación y diseño web | W1-02 |
 | W1-05 | P1 | Preparar instalación y verificación | W1-03, W1-04 |
-| W1-06 | P1 | Verificar entrega y recuperación | W1-05, W2-06, W3-06, W4-06 |
+| W1-06 | P1 | Verificar entrega y recuperación | W1-05, W2-06, W3-06, W4-06 (en revisión) |
 
 ## W1-01 Fijar entorno y contratos comunes
 
@@ -89,14 +89,14 @@ Resultado: Otro integrante puede instalar y ejecutar el proyecto con instruccion
 
 ## W1-06 Verificar entrega y recuperación
 
-Prioridad: P1. Estado: completado.
+Prioridad: P1. Estado: en revisión.
 
-Dependencias: W1-05, W2-06, W3-06, W4-06.
+Dependencias: W1-05, W2-06, W3-06, W4-06 (supeditada al cierre de revisiones pendientes de los otros 3 módulos).
 
 Resultado: Versión integrada comprobada y respaldo restaurado en una base aislada.
 
-- [x] Comprobar todos los criterios CW con evidencias integradas y resolver hallazgos con sus propietarios.
-- [x] Restaurar un respaldo propio de Supabase en una base aislada y contrastar cuentas, catálogo, movimientos, promociones, órdenes e importes.
-- [x] Verificar el despliegue de prueba HTTPS y registrar navegadores, versiones, limitaciones y pasos de uso.
-- [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W1-06.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Comprobar todos los criterios CW con evidencias integradas y resolver hallazgos con sus propietarios tras la aprobación de W2-06, W3-06 y W4-06.
+- [ ] Restaurar un respaldo propio de Supabase en una base aislada y contrastar cuentas, catálogo, movimientos, promociones, órdenes e importes.
+- [ ] Verificar el despliegue de prueba HTTPS y registrar navegadores, versiones, limitaciones y pasos de uso en Chrome Android y Safari iPhone.
+- [x] Verificar estructura y comportamiento pertinente con evidencia real de W1 (script verificar-accesos-w1.ts con 41/41 pruebas aprobadas).
+- [ ] Completar `docs/auditorias/W1-06.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente fechada del revisor 4 antes de cerrar.

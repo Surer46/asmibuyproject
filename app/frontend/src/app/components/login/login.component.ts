@@ -90,18 +90,6 @@ import { AuthService } from '../../services/auth.service';
             }
           </button>
         </form>
-
-        <div class="quick-access">
-          <p class="quick-title">Cuentas rápidas de prueba:</p>
-          <div class="quick-buttons">
-            <button type="button" (click)="cargarCredenciales('admin')" class="btn-quick admin">
-              🔑 Admin
-            </button>
-            <button type="button" (click)="cargarCredenciales('cajero')" class="btn-quick cajero">
-              👤 Trabajador
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   `,
@@ -134,9 +122,9 @@ import { AuthService } from '../../services/auth.service';
       width: 62px;
       height: 62px;
       border-radius: 20px;
-      background: var(--gradiente-naranja-amarillo);
+      background: var(--color-primaria-exito);
       color: #ffffff;
-      box-shadow: 0 8px 24px rgba(249, 115, 22, 0.35);
+      box-shadow: 0 4px 14px rgba(22, 101, 52, 0.25);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -243,52 +231,6 @@ import { AuthService } from '../../services/auth.service';
     @keyframes spin {
       100% { transform: rotate(360deg); }
     }
-    .quick-access {
-      margin-top: 22px;
-      padding-top: 16px;
-      border-top: 1px dashed var(--color-borde);
-      text-align: center;
-    }
-    .quick-title {
-      font-size: 0.75rem;
-      color: var(--color-texto-secundario);
-      margin-bottom: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .quick-buttons {
-      display: flex;
-      gap: 10px;
-    }
-    .btn-quick {
-      flex: 1;
-      min-height: 44px;
-      border-radius: 12px;
-      border: 1px solid var(--color-borde);
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 600;
-      font-family: inherit;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: transform 0.12s ease, box-shadow 0.15s ease;
-    }
-    .btn-quick:active {
-      transform: scale(0.96);
-    }
-    .btn-quick.admin {
-      color: #c2410c;
-      border-color: #fed7aa;
-      background: linear-gradient(135deg, #fff7ed 0%, #fefce8 100%);
-    }
-    .btn-quick.cajero {
-      color: #047857;
-      border-color: #a7f3d0;
-      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-    }
   `]
 })
 export class LoginComponent {
@@ -300,17 +242,9 @@ export class LoginComponent {
   errorMensaje = '';
 
   form: FormGroup = this.fb.group({
-    correo: ['admin@asmibuy.com', [Validators.required, Validators.email]],
-    password: ['Admin1234!', [Validators.required]]
+    correo: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]]
   });
-
-  cargarCredenciales(tipo: 'admin' | 'cajero') {
-    if (tipo === 'admin') {
-      this.form.patchValue({ correo: 'admin@asmibuy.com', password: 'Admin1234!' });
-    } else {
-      this.form.patchValue({ correo: 'cajero@asmibuy.com', password: 'Cajero1234!' });
-    }
-  }
 
   onSubmit(): void {
     if (this.form.invalid) return;

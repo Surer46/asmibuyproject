@@ -83,14 +83,33 @@ export class AuthService {
    * Cierra la sesión en el servidor y limpia el estado local
    */
   logout(): void {
-    this.http.post(`${this.baseUrl}/logout`, {}, { withCredentials: true }).subscribe({
-      next: () => {
-        this.usuarioActual.set(null);
-        this.router.navigate(['/login']);
+    let token = this.csrfToken();
+    if (!token && typeof document !== 'undefined') {
+      const match = document.cookie.match(/asmibuy_csrf=([^;]+)/);
+      if (match) {
+        token = match[1];
+        this.csrfToken.set(token);
+      }
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['X-CSRF-Token'] = token;
+    }
+
+    this.http.post<{ exito: boolean; mensaje: string }>(`${this.baseUrl}/logout`, {}, {
+      headers,
+      withCredentials: true
+    }).subscribe({
+      next: (res) => {
+        if (res && res.exito) {
+          this.usuarioActual.set(null);
+          this.router.navigate(['/login']);
+        }
       },
-      error: () => {
-        this.usuarioActual.set(null);
-        this.router.navigate(['/login']);
+      error: (err) => {
+        console.error('Error al revocar la sesión en el servidor:', err);
+        alert('No se pudo revocar la sesión en el servidor: ' + (err.error?.mensaje || 'Error de seguridad / comunicación'));
       }
     });
   }

@@ -4,10 +4,10 @@
   "description": "API REST Backend para Asmibuy MVP en Express y TypeScript",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "tsc && node dist/index.js",
+    "build": "tsc && node copiar-migraciones.js",
+    "start": "tsc && node copiar-migraciones.js && node dist/index.js",
     "dev": "node --watch --loader ts-node/esm src/index.ts",
-    "migrate": "tsc && node dist/migrations/migrador.js"
+    "migrate": "tsc && node copiar-migraciones.js && node dist/migrations/migrador.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

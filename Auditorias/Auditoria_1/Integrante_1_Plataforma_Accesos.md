@@ -21,3 +21,20 @@ Fecha: 29 de septiembre de 2026. Alcance: W1-01 a W1-06, CW-01, CW-02, CW-17, CW
 ## Límite de la revisión
 
 Se usó PostgreSQL aislado y la API local de demostración. No se accedió a Supabase ni se ejecutó un respaldo operativo. La herramienta de navegador dejó de permitir continuar la inspección de la URL local; no se atribuye validación a Chrome Android, Safari iPhone ni Edge/Chrome de PC.
+
+---
+
+## Resolución de hallazgos por el integrante 1
+
+Fecha de resolución: 7 de octubre de 2026. Estado de los hallazgos técnicos: **resueltos y verificados con pruebas automáticas**.
+
+| Gravedad | Tarea | Estado | Solución implementada y evidencia |
+| --- | --- | --- | --- |
+| **Crítica** | W1-03, CW-01/02 | **Resuelto** | Se eliminaron las cuentas fijas con contraseñas conocidas de `auth.service.ts` y todo fallback a memoria ante caída de BD. Ante fallo de BD se deniega el acceso arrojando error 500 (`ERROR_INTERNO`). Cuentas con `activo=false` son rechazadas con 403 `CUENTA_DESACTIVADA`. Se eliminaron los botones de acceso rápido y datos pre-llenados en `login.component.ts`, y las contraseñas en claro de `mantenimiento-cuentas.ts`. |
+| **Alta** | W1-02, W1-03 | **Resuelto** | En `database.ts`, `rejectUnauthorized` valida certificados por defecto para evitar MITM. En `index.ts` y `auth.middleware.ts`, se limitó CORS y CSRF a orígenes permitidos con `esOrigenPermitido`: peticiones desde `http://untrusted.example.test` son rechazadas con 403 `ORIGEN_NO_PERMITIDO`. |
+| **Alta** | W1-03, CW-01 | **Resuelto** | `AuthService.logout()` en frontend ahora envía el encabezado `X-CSRF-Token` y verifica respuesta exitosa del servidor antes de limpiar el estado reactivo del cliente. La sesión se revoca en servidor; la reutilización de la cookie anterior es rechazada con 401 `NO_AUTENTICADO`. |
+| **Alta** | W1-02, W1-06, CW-20 | **Resuelto** | Las migraciones `.sql` se copian automáticamente a `dist/migrations` durante el build mediante `copiar-migraciones.js`. `migrador.ts` gestiona la tabla `schema_migraciones`, aplica transaccionalmente cada script y finaliza con código de salida `1` ante cualquier fallo de conexión o error SQL. |
+| **Alta** | W1-03 | **Resuelto** | Se implementó hashing criptográfico SHA-256 (`AuthService.hashTokenSesion`): en `sesiones.id` se almacena exclusivamente el hash de 64 caracteres hex. El token en texto claro viaja sólo en la cookie HttpOnly y nunca reside en claro en la base de datos. |
+| **Media** | W1-04, CW-18 | **Resuelto** | Se alinearon los tokens de `styles.css` con `AGENTS.md` (#166534 primaria/éxito, #6D28D9 acento, #B91C1C error, #FACC15 con texto #713F12 advertencia, #F7F8FA fondo, #FFFFFF superficie, superficies suaves y borde #6B7280). Se alojaron las fuentes Roboto (400, 500, 700) y Material Symbols Rounded en `public/fonts/` junto a `LICENSE-ROBOTO.txt` y `LICENSE-MATERIAL-SYMBOLS.txt`. Se eliminaron enlaces externos a Google Fonts en `index.html`. |
+| **Evidencia** | W1-01 a W1-06 | **Actualizado** | W1-06 se actualizó a estado **en revisión** (bloqueada por dependencias pendientes W2-06, W3-06 y W4-06). Se implementó el script de verificación `app/backend/src/scripts/verificar-accesos-w1.ts` con **41 pruebas automáticas exitosas (0 fallos)** para someter formalmente la entrega a revisión del Integrante 4. |
+

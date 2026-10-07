@@ -13,7 +13,7 @@ export interface Usuario {
 }
 
 export interface Sesion {
-  id: string;
+  id: string; // Hash SHA-256 del token de sesión (nunca el token en claro)
   usuario_id: number;
   expira_en: Date;
   revocada: boolean;
@@ -21,29 +21,9 @@ export interface Sesion {
   creado_en: string;
 }
 
-// Almacén seguro en memoria para desarrollo local
-const usuariosEnMemoria: Usuario[] = [
-  {
-    id: 1,
-    nombre: 'Administrador General',
-    correo: 'admin@asmibuy.com',
-    password_hash: bcrypt.hashSync('Admin1234!', 10),
-    perfil: 'ADMINISTRADOR',
-    activo: true,
-    creado_en: new Date().toISOString()
-  },
-  {
-    id: 2,
-    nombre: 'Trabajador de Turno',
-    correo: 'cajero@asmibuy.com',
-    password_hash: bcrypt.hashSync('Cajero1234!', 10),
-    perfil: 'TRABAJADOR',
-    activo: true,
-    creado_en: new Date().toISOString()
-  }
-];
-
-const sesionesEnMemoria: Map<string, Sesion> = new Map();
+// Almacén exclusivo para pruebas unitarias aisladas en entorno NODE_ENV=test sin BD
+const usuariosTestMemoria: Usuario[] = [];
+const sesionesTestMemoria: Map<string, Sesion> = new Map();
 
 /**
  * Servicio de Autenticación y Cuentas Nominales (Spec v2.1)
@@ -64,10 +44,17 @@ export class AuthService {
   }
 
   /**
-   * Genera un identificador de sesión seguro y aleatorio
+   * Genera un identificador de sesión criptográficamente seguro
    */
   static generarIdSesion(): string {
     return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Genera el hash criptográfico SHA-256 de un token de sesión para persistencia segura
+   */
+  static hashTokenSesion(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   /**
@@ -78,18 +65,35 @@ export class AuthService {
   }
 
   /**
+   * Métodos auxiliares para pruebas automatizadas aisladas
+   */
+  static resetearMemoriaTest(): void {
+    usuariosTestMemoria.length = 0;
+    sesionesTestMemoria.clear();
+  }
+
+  static agregarUsuarioTest(usuario: Usuario): void {
+    usuariosTestMemoria.push(usuario);
+  }
+
+  /**
    * Busca un usuario por correo electrónico
    */
   static async buscarPorCorreo(correo: string): Promise<Usuario | null> {
+    if (!correo) return null;
+    const correoNormalizado = correo.trim().toLowerCase();
+
     if (process.env.DATABASE_URL) {
-      try {
-        const res = await pool.query('SELECT * FROM usuarios WHERE correo = $1', [correo.toLowerCase()]);
-        return res.rows[0] || null;
-      } catch (e) {
-        console.warn('Fallback a memoria al buscar usuario por BD');
-      }
+      // Consulta directa a PostgreSQL. Si falla la BD, se lanza el error sin fallback a memoria.
+      const res = await pool.query('SELECT * FROM usuarios WHERE LOWER(correo) = $1', [correoNormalizado]);
+      return res.rows[0] || null;
     }
-    return usuariosEnMemoria.find(u => u.correo.toLowerCase() === correo.toLowerCase()) || null;
+
+    if (process.env.NODE_ENV === 'test') {
+      return usuariosTestMemoria.find(u => u.correo.toLowerCase() === correoNormalizado) || null;
+    }
+
+    throw new Error('DATABASE_URL no está configurada y el entorno no es de prueba aislada.');
   }
 
   /**
@@ -97,25 +101,30 @@ export class AuthService {
    */
   static async buscarPorId(id: number): Promise<Usuario | null> {
     if (process.env.DATABASE_URL) {
-      try {
-        const res = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
-        return res.rows[0] || null;
-      } catch (e) {
-        console.warn('Fallback a memoria al buscar usuario por ID');
-      }
+      // Consulta directa a PostgreSQL sin fallback silencioso
+      const res = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
+      return res.rows[0] || null;
     }
-    return usuariosEnMemoria.find(u => u.id === id) || null;
+
+    if (process.env.NODE_ENV === 'test') {
+      return usuariosTestMemoria.find(u => u.id === id) || null;
+    }
+
+    throw new Error('DATABASE_URL no está configurada y el entorno no es de prueba aislada.');
   }
 
   /**
-   * Crea una nueva sesión en el servidor con duración de 8 horas
+   * Crea una nueva sesión en el servidor con duración de 8 horas.
+   * Guarda únicamente el hash SHA-256 del token en la base de datos (sesiones.id),
+   * retornando el token en claro sólo para la cookie HttpOnly.
    */
-  static async crearSesion(usuarioId: number, ip?: string): Promise<Sesion> {
-    const id = this.generarIdSesion();
+  static async crearSesion(usuarioId: number, ip?: string): Promise<{ token: string; sesion: Sesion }> {
+    const rawToken = this.generarIdSesion();
+    const tokenHash = this.hashTokenSesion(rawToken);
     const expiraEn = new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 horas
 
     const sesion: Sesion = {
-      id,
+      id: tokenHash,
       usuario_id: usuarioId,
       expira_en: expiraEn,
       revocada: false,
@@ -124,36 +133,35 @@ export class AuthService {
     };
 
     if (process.env.DATABASE_URL) {
-      try {
-        await pool.query(
-          'INSERT INTO sesiones (id, usuario_id, expira_en, ip_creacion) VALUES ($1, $2, $3, $4)',
-          [id, usuarioId, expiraEn, ip || null]
-        );
-      } catch (e) {
-        sesionesEnMemoria.set(id, sesion);
-      }
+      await pool.query(
+        'INSERT INTO sesiones (id, usuario_id, expira_en, ip_creacion) VALUES ($1, $2, $3, $4)',
+        [tokenHash, usuarioId, expiraEn, ip || null]
+      );
+    } else if (process.env.NODE_ENV === 'test') {
+      sesionesTestMemoria.set(tokenHash, sesion);
     } else {
-      sesionesEnMemoria.set(id, sesion);
+      throw new Error('DATABASE_URL no configurada para crear sesión.');
     }
 
-    return sesion;
+    return { token: rawToken, sesion };
   }
 
   /**
-   * Valida una sesión: comprueba existencia, expiración, revocación y estado activo del usuario
+   * Valida una sesión: recibe el token en claro de la cookie, calcula su hash SHA-256
+   * y comprueba existencia, expiración, revocación y estado activo del usuario.
    */
-  static async validarSesion(sesionId: string): Promise<{ valida: boolean; usuario: Usuario | null }> {
+  static async validarSesion(token: string): Promise<{ valida: boolean; usuario: Usuario | null }> {
+    if (!token) return { valida: false, usuario: null };
+    const tokenHash = this.hashTokenSesion(token);
     let sesion: Sesion | null = null;
 
     if (process.env.DATABASE_URL) {
-      try {
-        const res = await pool.query('SELECT * FROM sesiones WHERE id = $1', [sesionId]);
-        if (res.rows.length > 0) sesion = res.rows[0];
-      } catch (e) {
-        sesion = sesionesEnMemoria.get(sesionId) || null;
-      }
+      const res = await pool.query('SELECT * FROM sesiones WHERE id = $1', [tokenHash]);
+      if (res.rows.length > 0) sesion = res.rows[0];
+    } else if (process.env.NODE_ENV === 'test') {
+      sesion = sesionesTestMemoria.get(tokenHash) || null;
     } else {
-      sesion = sesionesEnMemoria.get(sesionId) || null;
+      throw new Error('DATABASE_URL no configurada para validar sesión.');
     }
 
     if (!sesion) return { valida: false, usuario: null };
@@ -173,24 +181,22 @@ export class AuthService {
   }
 
   /**
-   * Revoca / cierra una sesión en el servidor
+   * Revoca / cierra una sesión en el servidor calculando el hash del token.
    */
-  static async revocarSesion(sesionId: string): Promise<void> {
+  static async revocarSesion(token: string): Promise<void> {
+    if (!token) return;
+    const tokenHash = this.hashTokenSesion(token);
+
     if (process.env.DATABASE_URL) {
-      try {
-        await pool.query('UPDATE sesiones SET revocada = TRUE WHERE id = $1', [sesionId]);
-      } catch (e) {
-        const s = sesionesEnMemoria.get(sesionId);
-        if (s) s.revocada = true;
-      }
-    } else {
-      const s = sesionesEnMemoria.get(sesionId);
+      await pool.query('UPDATE sesiones SET revocada = TRUE WHERE id = $1', [tokenHash]);
+    } else if (process.env.NODE_ENV === 'test') {
+      const s = sesionesTestMemoria.get(tokenHash);
       if (s) s.revocada = true;
     }
   }
 
   /**
-   * Utilidad de mantenimiento: Crear cuenta nominal sin pantalla pública de usuarios
+   * Utilidad de mantenimiento: Crear cuenta nominal directamente en la base de datos
    */
   static async crearCuentaNominal(
     nombre: string,
@@ -199,26 +205,31 @@ export class AuthService {
     perfil: 'ADMINISTRADOR' | 'TRABAJADOR'
   ): Promise<Usuario> {
     const password_hash = this.hashPassword(passwordPlano);
-    const nuevoUsuario: Usuario = {
-      id: usuariosEnMemoria.length + 1,
-      nombre,
-      correo: correo.toLowerCase(),
-      password_hash,
-      perfil,
-      activo: true,
-      creado_en: new Date().toISOString()
-    };
+    const correoNormalizado = correo.trim().toLowerCase();
 
     if (process.env.DATABASE_URL) {
       const res = await pool.query(
         `INSERT INTO usuarios (nombre, correo, password_hash, perfil, activo)
          VALUES ($1, $2, $3, $4, TRUE) RETURNING *`,
-        [nombre, correo.toLowerCase(), password_hash, perfil]
+        [nombre.trim(), correoNormalizado, password_hash, perfil]
       );
       return res.rows[0];
     }
 
-    usuariosEnMemoria.push(nuevoUsuario);
-    return nuevoUsuario;
+    if (process.env.NODE_ENV === 'test') {
+      const nuevoUsuario: Usuario = {
+        id: usuariosTestMemoria.length + 1,
+        nombre: nombre.trim(),
+        correo: correoNormalizado,
+        password_hash,
+        perfil,
+        activo: true,
+        creado_en: new Date().toISOString()
+      };
+      usuariosTestMemoria.push(nuevoUsuario);
+      return nuevoUsuario;
+    }
+
+    throw new Error('DATABASE_URL requerida para crear cuentas nominales.');
   }
 }
