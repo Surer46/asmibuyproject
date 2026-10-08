@@ -20,3 +20,19 @@ El backend y frontend compilaron. Las cuatro verificaciones W2 ejecutadas pasaro
 ## Límite de la revisión
 
 La prueba PostgreSQL se hizo en una base aislada creada para esta auditoría. No se probó Supabase ni se pudo completar la inspección en navegadores móviles reales. El defecto de saldo negativo demuestra que CW-04 y CW-06 no están cerrados.
+
+---
+
+## Resolución de hallazgos por el integrante 2
+
+Fecha de resolución: 7 de octubre de 2026. Estado de los hallazgos técnicos: **resueltos y verificados con pruebas automáticas**.
+
+| Gravedad | Tarea | Estado | Solución implementada y evidencia |
+| --- | --- | --- | --- |
+| **Crítica** | W2-03, CW-04/06 | **Resuelto** | Se reestructuró `registrarAjuste()` para ejecutarse dentro de `ejecutarTransaccion` con bloqueo explícito `SELECT ... FROM ingredientes WHERE id = $1 FOR UPDATE` y cálculo del saldo acumulado con el mismo `PoolClient`. Se añadió la migración `005_proteccion_stock_no_negativo.sql` que instala el trigger `trg_check_stock_no_negativo` a nivel de base de datos para defensa en profundidad. En modo memoria aislado se implementó `ejecutarConBloqueoMemoria`. La prueba concurrente de dos ajustes simultáneos de `-8` sobre 10 unidades resultó en exactamente 1 aceptado y 1 rechazado con `STOCK_NEGATIVO_NO_PERMITIDO`, manteniendo el saldo final en 2 (nunca negativo). |
+| **Alta** | W2-02/03 | **Resuelto** | Se eliminaron todos los bloques `try/catch` con fallback silencioso a memoria (`console.warn('Fallback a memoria...')`) en `CatalogoService` e `InventarioService`. Ante cualquier error o caída de base de datos (`DATABASE_URL`), se arroja inmediatamente la excepción de PostgreSQL y se responde con código HTTP 500 (`ERROR_INTERNO`) o el código de error correspondiente, impidiendo que procesos diverjan o reporten éxito falso. El modo memoria queda reservado exclusivamente para pruebas aisladas sin BD (`!process.env.DATABASE_URL`). |
+| **Alta** | W2-02, CW-03 | **Resuelto** | Se refactorizaron `obtenerPlatilloPorId` y `obtenerIngredientePorId` para recibir opcionalmente un `clienteDb?: PoolClient | Pool`. En `crearPlatillo` y `actualizarPlatillo`, la lectura del platillo y de sus recetas se realiza utilizando el `client` de la transacción activa antes de ejecutar `COMMIT`, asegurando que retorne inmediatamente la entidad creada o el precio actualizado sin retornar `null` ni valores desactualizados. |
+| **Alta** | W2-03 con W4-03 | **Resuelto** | En `descontarInventarioPorVenta`, se implementó el bloqueo atómico previo de los platillos vendidos (`SELECT ... FROM platillos WHERE id = ANY($1) ORDER BY id FOR UPDATE`) y la lectura consistente de sus recetas en la misma transacción mediante `client`, antes de bloquear los ingredientes (`FOR UPDATE`). Esto garantiza que ninguna edición concurrente de receta pueda alterar el consumo entre cotización y confirmación de venta. |
+| **Media** | W2-02/03 | **Resuelto** | Se implementó el validador estricto `validarNumeroDecimal` en `catalogo.service.ts`: rechaza explícitamente `NaN`, `Infinity`, `-Infinity`, cadenas con caracteres alfanuméricos, notación científica y espacios en blanco. Se validan escalas máximas (2 decimales para precios, 3 para g/ml y 0 para piezas), enteros estrictos y límites de tipo `numeric`. Todas las entradas, mínimos, precios y ajustes son validados rigurosamente. |
+| **Evidencia** | W2-04 a W2-06 | **Actualizado** | Se empaquetó la migración `005_proteccion_stock_no_negativo.sql` en `dist/migrations/` (5 migraciones SQL en total). Se implementó el script de verificación `app/backend/src/scripts/verificar-auditoria1-w2.ts` con **26 pruebas automáticas exitosas (0 fallos)**, sumando un total de **113 pruebas automáticas aprobadas** para el Integrante 2 (W2-02: 22, W2-03: 28, W2-05: 23, W2-06: 14, Auditoría 1: 26). Se actualiza la documentación y se somete formalmente a revisión de los Integrantes 1 y 4. |
+
