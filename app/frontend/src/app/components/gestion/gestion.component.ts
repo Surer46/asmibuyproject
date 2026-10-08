@@ -1536,6 +1536,8 @@ export class GestionComponent implements OnInit {
         return;
       }
       payload.porcentaje = this.formPromocion.porcentaje;
+      payload.n = null;
+      payload.m = null;
     } else {
       const n = Number(this.formPromocion.n);
       const m = Number(this.formPromocion.m);
@@ -1545,6 +1547,7 @@ export class GestionComponent implements OnInit {
       }
       payload.n = n;
       payload.m = m;
+      payload.porcentaje = null;
     }
 
     if (this.formPromocion.duracion === 'TEMPORAL') {
@@ -1560,6 +1563,9 @@ export class GestionComponent implements OnInit {
       }
       payload.fechaInicio = ini.toISOString();
       payload.fechaFin = fin.toISOString();
+    } else {
+      payload.fechaInicio = null;
+      payload.fechaFin = null;
     }
 
     this.guardando.set(true);

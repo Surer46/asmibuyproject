@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js';
+import { Pool, PoolClient } from 'pg';
 import { pool } from '../config/database';
 import {
   almacenMemoria,
@@ -248,9 +249,13 @@ export class PromocionesService {
   /**
    * Verifica que el platillo exista y se encuentre activo.
    */
-  private static async obtenerPlatilloValidado(platilloId: number): Promise<{ id: number; nombre: string; precio: Decimal; activo: boolean }> {
+  private static async obtenerPlatilloValidado(
+    platilloId: number,
+    clienteDb?: PoolClient | Pool
+  ): Promise<{ id: number; nombre: string; precio: Decimal; activo: boolean }> {
     if (process.env.DATABASE_URL) {
-      const res = await pool.query('SELECT id, nombre, precio, activo FROM platillos WHERE id = $1', [platilloId]);
+      const db = clienteDb || pool;
+      const res = await db.query('SELECT id, nombre, precio, activo FROM platillos WHERE id = $1', [platilloId]);
       if (res.rows.length === 0) {
         throw new ErrorPromocion('PLATILLO_NO_ENCONTRADO', `El platillo con ID ${platilloId} no existe.`, 404);
       }
@@ -274,9 +279,13 @@ export class PromocionesService {
   /**
    * Crea una nueva promoción en la base de datos o en memoria.
    */
-  static async crearPromocion(input: CrearPromocionInput, usuarioId: number): Promise<PromocionDTO> {
+  static async crearPromocion(
+    input: CrearPromocionInput,
+    usuarioId: number,
+    clienteDb?: PoolClient | Pool
+  ): Promise<PromocionDTO> {
     this.validarParametros(input);
-    const platillo = await this.obtenerPlatilloValidado(input.platilloId);
+    const platillo = await this.obtenerPlatilloValidado(input.platilloId, clienteDb);
 
     const ahora = new Date();
     const porcentajeDec = input.tipo === 'PORCENTAJE' ? new Decimal(input.porcentaje!) : null;
@@ -286,13 +295,14 @@ export class PromocionesService {
     const finDate = input.duracion === 'TEMPORAL' ? new Date(input.fechaFin!) : null;
 
     if (process.env.DATABASE_URL) {
+      const db = clienteDb || pool;
       const sql = `
         INSERT INTO promociones (
           nombre, platillo_id, tipo, porcentaje, n, m, duracion, fecha_inicio, fecha_fin, estado, usuario_id, creado_en, actualizado_en
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVA', $10, $11, $11)
         RETURNING *
       `;
-      const res = await pool.query(sql, [
+      const res = await db.query(sql, [
         input.nombre.trim(),
         platillo.id,
         input.tipo,
@@ -333,10 +343,14 @@ export class PromocionesService {
   /**
    * Lista todas las promociones con cálculo dinámico de vigencia efectiva.
    */
-  static async listarPromociones(soloActivas: boolean = false): Promise<PromocionDTO[]> {
+  static async listarPromociones(
+    soloActivas: boolean = false,
+    clienteDb?: PoolClient | Pool
+  ): Promise<PromocionDTO[]> {
     const ahora = new Date();
 
     if (process.env.DATABASE_URL) {
+      const db = clienteDb || pool;
       let sql = `
         SELECT 
           pr.*,
@@ -351,7 +365,7 @@ export class PromocionesService {
       }
       sql += ` ORDER BY pr.id ASC`;
 
-      const res = await pool.query(sql, params);
+      const res = await db.query(sql, params);
       return res.rows.map((r) => this.mapearFilaADTO(r, r.nombre_platillo, new Decimal(r.precio_platillo).toFixed(2), ahora));
     } else {
       let lista = almacenMemoria.promociones;
@@ -371,10 +385,11 @@ export class PromocionesService {
   /**
    * Obtiene una promoción por ID.
    */
-  static async obtenerPorId(id: number): Promise<PromocionDTO> {
+  static async obtenerPorId(id: number, clienteDb?: PoolClient | Pool): Promise<PromocionDTO> {
     const ahora = new Date();
 
     if (process.env.DATABASE_URL) {
+      const db = clienteDb || pool;
       const sql = `
         SELECT 
           pr.*,
@@ -384,7 +399,7 @@ export class PromocionesService {
         JOIN platillos pl ON pr.platillo_id = pl.id
         WHERE pr.id = $1
       `;
-      const res = await pool.query(sql, [id]);
+      const res = await db.query(sql, [id]);
       if (res.rows.length === 0) {
         throw new ErrorPromocion('PROMOCION_NO_ENCONTRADA', `La promoción con ID ${id} no existe.`, 404);
       }
@@ -405,38 +420,82 @@ export class PromocionesService {
   /**
    * Actualiza los datos de una promoción existente.
    * Regla de negocio: Una promoción RETIRADA es inmutable y no se puede editar.
+   * Limpia parámetros que dejan de aplicar al cambiar de tipo o duración (CW-10).
    */
-  static async actualizarPromocion(id: number, input: ActualizarPromocionInput, usuarioId: number): Promise<PromocionDTO> {
-    const actual = await this.obtenerPorId(id);
+  static async actualizarPromocion(
+    id: number,
+    input: ActualizarPromocionInput,
+    usuarioId: number,
+    clienteDb?: PoolClient | Pool
+  ): Promise<PromocionDTO> {
+    const actual = await this.obtenerPorId(id, clienteDb);
     if (actual.estado === 'RETIRADA') {
       throw new ErrorPromocion('PROMOCION_RETIRADA', 'No se puede modificar una promoción en estado RETIRADA.', 409);
     }
 
-    // Fusión de campos para validación completa
+    const tipoFinal = input.tipo !== undefined ? input.tipo : actual.tipo;
+    const duracionFinal = input.duracion !== undefined ? input.duracion : actual.duracion;
+
+    // Fusión limpia de parámetros: descartar valores que dejan de aplicar al cambiar de tipo o duración
+    let porcentajeMerged: string | number | null | undefined = undefined;
+    let nMerged: number | null | undefined = undefined;
+    let mMerged: number | null | undefined = undefined;
+
+    if (tipoFinal === 'PORCENTAJE') {
+      porcentajeMerged = input.porcentaje !== undefined ? input.porcentaje : actual.porcentaje;
+      nMerged = input.n !== undefined && input.n !== null ? input.n : undefined;
+      mMerged = input.m !== undefined && input.m !== null ? input.m : undefined;
+    } else if (tipoFinal === 'NXM') {
+      porcentajeMerged =
+        input.porcentaje !== undefined && input.porcentaje !== null && input.porcentaje !== ''
+          ? input.porcentaje
+          : undefined;
+      nMerged = input.n !== undefined ? input.n : actual.n;
+      mMerged = input.m !== undefined ? input.m : actual.m;
+    }
+
+    let fechaInicioMerged: string | null | undefined = undefined;
+    let fechaFinMerged: string | null | undefined = undefined;
+
+    if (duracionFinal === 'PERMANENTE') {
+      fechaInicioMerged =
+        input.fechaInicio !== undefined && input.fechaInicio !== null && input.fechaInicio !== ''
+          ? input.fechaInicio
+          : undefined;
+      fechaFinMerged =
+        input.fechaFin !== undefined && input.fechaFin !== null && input.fechaFin !== ''
+          ? input.fechaFin
+          : undefined;
+    } else if (duracionFinal === 'TEMPORAL') {
+      fechaInicioMerged = input.fechaInicio !== undefined ? input.fechaInicio : actual.fechaInicio;
+      fechaFinMerged = input.fechaFin !== undefined ? input.fechaFin : actual.fechaFin;
+    }
+
     const mergedInput: CrearPromocionInput = {
       nombre: input.nombre !== undefined ? input.nombre : actual.nombre,
       platilloId: input.platilloId !== undefined ? input.platilloId : actual.platilloId,
-      tipo: input.tipo !== undefined ? input.tipo : actual.tipo,
-      porcentaje: input.porcentaje !== undefined ? input.porcentaje : actual.porcentaje,
-      n: input.n !== undefined ? input.n : actual.n,
-      m: input.m !== undefined ? input.m : actual.m,
-      duracion: input.duracion !== undefined ? input.duracion : actual.duracion,
-      fechaInicio: input.fechaInicio !== undefined ? input.fechaInicio : actual.fechaInicio,
-      fechaFin: input.fechaFin !== undefined ? input.fechaFin : actual.fechaFin
+      tipo: tipoFinal,
+      porcentaje: porcentajeMerged,
+      n: nMerged,
+      m: mMerged,
+      duracion: duracionFinal,
+      fechaInicio: fechaInicioMerged,
+      fechaFin: fechaFinMerged
     };
 
     this.validarParametros(mergedInput);
-    const platillo = await this.obtenerPlatilloValidado(mergedInput.platilloId);
+    const platillo = await this.obtenerPlatilloValidado(mergedInput.platilloId, clienteDb);
 
     const ahora = new Date();
-    const porcentajeDec = mergedInput.tipo === 'PORCENTAJE' ? new Decimal(mergedInput.porcentaje!) : null;
-    const nInt = mergedInput.tipo === 'NXM' ? Number(mergedInput.n) : null;
-    const mInt = mergedInput.tipo === 'NXM' ? Number(mergedInput.m) : null;
-    const iniDate = mergedInput.duracion === 'TEMPORAL' ? new Date(mergedInput.fechaInicio!) : null;
-    const finDate = mergedInput.duracion === 'TEMPORAL' ? new Date(mergedInput.fechaFin!) : null;
+    const porcentajeDec = tipoFinal === 'PORCENTAJE' ? new Decimal(mergedInput.porcentaje!) : null;
+    const nInt = tipoFinal === 'NXM' ? Number(mergedInput.n) : null;
+    const mInt = tipoFinal === 'NXM' ? Number(mergedInput.m) : null;
+    const iniDate = duracionFinal === 'TEMPORAL' ? new Date(mergedInput.fechaInicio!) : null;
+    const finDate = duracionFinal === 'TEMPORAL' ? new Date(mergedInput.fechaFin!) : null;
     const nuevoEstado = input.estado || actual.estado;
 
     if (process.env.DATABASE_URL) {
+      const db = clienteDb || pool;
       const sql = `
         UPDATE promociones SET
           nombre = $1,
@@ -451,17 +510,17 @@ export class PromocionesService {
           estado = $10,
           usuario_id = $11,
           actualizado_en = $12
-        WHERE id = $13
+        WHERE id = $13 AND estado <> 'RETIRADA'
         RETURNING *
       `;
-      const res = await pool.query(sql, [
+      const res = await db.query(sql, [
         mergedInput.nombre.trim(),
         platillo.id,
-        mergedInput.tipo,
+        tipoFinal,
         porcentajeDec ? porcentajeDec.toFixed(2) : null,
         nInt,
         mInt,
-        mergedInput.duracion,
+        duracionFinal,
         iniDate,
         finDate,
         nuevoEstado,
@@ -469,19 +528,35 @@ export class PromocionesService {
         ahora,
         id
       ]);
+      if (res.rowCount === 0) {
+        const check = await db.query('SELECT estado FROM promociones WHERE id = $1', [id]);
+        if (check.rowCount === 0) {
+          throw new ErrorPromocion('PROMOCION_NO_ENCONTRADA', `La promoción con ID ${id} no existe.`, 404);
+        }
+        if (check.rows[0].estado === 'RETIRADA') {
+          throw new ErrorPromocion('PROMOCION_RETIRADA', 'No se puede modificar una promoción en estado RETIRADA.', 409);
+        }
+        throw new ErrorPromocion('ERROR_CONCURRENCIA', 'No se pudo actualizar la promoción por conflicto concurrente.', 409);
+      }
       const row = res.rows[0];
       return this.mapearFilaADTO(row, platillo.nombre, platillo.precio.toFixed(2), ahora);
     } else {
       const idx = almacenMemoria.promociones.findIndex((item) => item.id === id);
+      if (idx === -1) {
+        throw new ErrorPromocion('PROMOCION_NO_ENCONTRADA', `La promoción con ID ${id} no existe.`, 404);
+      }
+      if (almacenMemoria.promociones[idx].estado === 'RETIRADA') {
+        throw new ErrorPromocion('PROMOCION_RETIRADA', 'No se puede modificar una promoción en estado RETIRADA.', 409);
+      }
       const updated: PromocionInterna = {
         ...almacenMemoria.promociones[idx],
         nombre: mergedInput.nombre.trim(),
         platilloId: platillo.id,
-        tipo: mergedInput.tipo,
+        tipo: tipoFinal,
         porcentaje: porcentajeDec,
         n: nInt,
         m: mInt,
-        duracion: mergedInput.duracion,
+        duracion: duracionFinal,
         fechaInicio: iniDate,
         fechaFin: finDate,
         estado: nuevoEstado,
@@ -495,39 +570,70 @@ export class PromocionesService {
 
   /**
    * Cambia el estado operativo de una promoción (ACTIVA / INACTIVA).
-   * No permite reactivar una promoción RETIRADA.
+   * No permite reactivar una promoción RETIRADA bajo ninguna circunstancia.
+   * Transición atómica con condición WHERE estado <> 'RETIRADA' (Criterio CW-10).
    */
-  static async cambiarEstado(id: number, nuevoEstado: EstadoPromocion, usuarioId: number): Promise<PromocionDTO> {
-    const promo = await this.obtenerPorId(id);
-    if (promo.estado === 'RETIRADA') {
-      throw new ErrorPromocion('PROMOCION_RETIRADA', 'No se puede cambiar el estado de una promoción retirada.', 409);
-    }
-
+  static async cambiarEstado(
+    id: number,
+    nuevoEstado: EstadoPromocion,
+    usuarioId: number,
+    clienteDb?: PoolClient | Pool
+  ): Promise<PromocionDTO> {
     if (nuevoEstado !== 'ACTIVA' && nuevoEstado !== 'INACTIVA' && nuevoEstado !== 'RETIRADA') {
       throw new ErrorPromocion('ESTADO_INVALIDO', "El estado debe ser 'ACTIVA', 'INACTIVA' o 'RETIRADA'.");
     }
 
     const ahora = new Date();
+    const db = clienteDb || pool;
+
     if (process.env.DATABASE_URL) {
-      const res = await pool.query(
-        `UPDATE promociones SET estado = $1, usuario_id = $2, actualizado_en = $3 WHERE id = $4 RETURNING *`,
+      const res = await db.query(
+        `UPDATE promociones SET estado = $1, usuario_id = $2, actualizado_en = $3 WHERE id = $4 AND estado <> 'RETIRADA' RETURNING *`,
         [nuevoEstado, usuarioId, ahora, id]
       );
-      return this.mapearFilaADTO(res.rows[0], promo.nombrePlatillo, promo.precioPlatillo, ahora);
+      if (res.rowCount === 0) {
+        const check = await db.query('SELECT estado FROM promociones WHERE id = $1', [id]);
+        if (check.rowCount === 0) {
+          throw new ErrorPromocion('PROMOCION_NO_ENCONTRADA', `La promoción con ID ${id} no existe.`, 404);
+        }
+        if (check.rows[0].estado === 'RETIRADA') {
+          throw new ErrorPromocion('PROMOCION_RETIRADA', 'No se puede cambiar el estado de una promoción retirada.', 409);
+        }
+        throw new ErrorPromocion('ERROR_CONCURRENCIA', 'No se pudo actualizar el estado de la promoción por conflicto concurrente.', 409);
+      }
+      const row = res.rows[0];
+      const platilloRes = await db.query('SELECT nombre, precio FROM platillos WHERE id = $1', [row.platillo_id]);
+      const platillo = platilloRes.rows[0] || { nombre: 'Desconocido', precio: '0.00' };
+      return this.mapearFilaADTO(row, platillo.nombre, new Decimal(platillo.precio).toFixed(2), ahora);
     } else {
       const idx = almacenMemoria.promociones.findIndex((p) => p.id === id);
+      if (idx === -1) {
+        throw new ErrorPromocion('PROMOCION_NO_ENCONTRADA', `La promoción con ID ${id} no existe.`, 404);
+      }
+      if (almacenMemoria.promociones[idx].estado === 'RETIRADA') {
+        throw new ErrorPromocion('PROMOCION_RETIRADA', 'No se puede cambiar el estado de una promoción retirada.', 409);
+      }
+
       almacenMemoria.promociones[idx].estado = nuevoEstado;
       almacenMemoria.promociones[idx].usuarioId = usuarioId;
       almacenMemoria.promociones[idx].actualizadoEn = ahora;
-      return this.mapearInternoADTO(almacenMemoria.promociones[idx], promo.nombrePlatillo, promo.precioPlatillo, ahora);
+
+      const platillo = almacenMemoria.platillos.find((item) => item.id === almacenMemoria.promociones[idx].platilloId);
+      const nomPlatillo = platillo ? platillo.nombre : 'Desconocido';
+      const precPlatillo = platillo ? platillo.precio.toFixed(2) : '0.00';
+      return this.mapearInternoADTO(almacenMemoria.promociones[idx], nomPlatillo, precPlatillo, ahora);
     }
   }
 
   /**
    * Retira definitivamente una promoción (baja lógica inmutable).
    */
-  static async retirarPromocion(id: number, usuarioId: number): Promise<PromocionDTO> {
-    return this.cambiarEstado(id, 'RETIRADA', usuarioId);
+  static async retirarPromocion(
+    id: number,
+    usuarioId: number,
+    clienteDb?: PoolClient | Pool
+  ): Promise<PromocionDTO> {
+    return this.cambiarEstado(id, 'RETIRADA', usuarioId, clienteDb);
   }
 
   /**
@@ -591,7 +697,22 @@ export class PromocionesService {
    * 4. Asigna el descuento a la partida participante; las demás quedan a precio íntegro.
    * 5. Suma de subtotales netos == total de la orden.
    */
-  static async cotizarOrden(items: ItemCotizacionInput[], fechaEvaluacion: Date = new Date()): Promise<ResultadoCotizacionDTO> {
+  /**
+   * EVALUACIÓN Y COTIZACIÓN DE ORDEN (W3-03 / W3-05)
+   * Aplica la regla estricta de "Una sola promoción por orden":
+   * 1. Evalúa todas las promociones activas y vigentes para los platillos de la orden.
+   * 2. Selecciona la promoción que otorgue el MAYOR AHORRO monetario.
+   * 3. Desempate determinista por MENOR ID (CW-13).
+   * 4. Asigna el descuento a la partida participante; las demás quedan a precio íntegro.
+   * 5. Suma de subtotales netos == total de la orden.
+   * Soporta ejecución atómica bajo PoolClient con bloqueo determinista ordenado (CW-14).
+   */
+  static async cotizarOrden(
+    items: ItemCotizacionInput[],
+    fechaEvaluacion: Date = new Date(),
+    clienteDb?: PoolClient | Pool,
+    bloquearParaConfirmacion: boolean = false
+  ): Promise<ResultadoCotizacionDTO> {
     if (!items || items.length === 0) {
       throw new ErrorPromocion('ORDEN_VACIA', 'La orden debe contener al menos un platillo.');
     }
@@ -609,15 +730,57 @@ export class PromocionesService {
       itemsConsolidadosMap.set(it.platilloId, actual + it.cantidad);
     }
 
-    // Obtener información de platillos involucrados
+    const idsPlatillos = Array.from(itemsConsolidadosMap.keys()).sort((a, b) => a - b);
     const platillosInfo = new Map<number, { id: number; nombre: string; precio: Decimal }>();
-    for (const platilloId of itemsConsolidadosMap.keys()) {
-      const p = await this.obtenerPlatilloValidado(platilloId);
-      platillosInfo.set(platilloId, p);
-    }
+    let todasPromos: PromocionDTO[] = [];
 
-    // Obtener todas las promociones activas
-    const todasPromos = await this.listarPromociones(true);
+    if (process.env.DATABASE_URL) {
+      const db = clienteDb || pool;
+      // Lectura atómica consistente de platillos con bloqueo opcional en orden determinista (CW-14)
+      let sqlPlatillos = 'SELECT id, nombre, precio, activo FROM platillos WHERE id = ANY($1) ORDER BY id ASC';
+      if (bloquearParaConfirmacion) {
+        sqlPlatillos += ' FOR SHARE';
+      }
+      const resPlatillos = await db.query(sqlPlatillos, [idsPlatillos]);
+      const platillosMap = new Map(resPlatillos.rows.map((r: any) => [r.id, r]));
+
+      for (const pid of idsPlatillos) {
+        const p = platillosMap.get(pid);
+        if (!p) {
+          throw new ErrorPromocion('PLATILLO_NO_ENCONTRADO', `El platillo con ID ${pid} no existe.`, 404);
+        }
+        if (!p.activo) {
+          throw new ErrorPromocion('PLATILLO_INACTIVO', `El platillo '${p.nombre}' está inactivo y no puede venderse.`, 400);
+        }
+        platillosInfo.set(pid, { id: p.id, nombre: p.nombre, precio: new Decimal(p.precio) });
+      }
+
+      // Lectura atómica consistente de promociones participantes
+      let sqlPromos = `
+        SELECT 
+          pr.*,
+          pl.nombre AS nombre_platillo,
+          pl.precio AS precio_platillo
+        FROM promociones pr
+        JOIN platillos pl ON pr.platillo_id = pl.id
+        WHERE pr.platillo_id = ANY($1) AND pr.estado = 'ACTIVA'
+        ORDER BY pr.id ASC
+      `;
+      if (bloquearParaConfirmacion) {
+        sqlPromos += ' FOR SHARE OF pr';
+      }
+      const resPromos = await db.query(sqlPromos, [idsPlatillos]);
+      todasPromos = resPromos.rows.map((r: any) =>
+        this.mapearFilaADTO(r, r.nombre_platillo, new Decimal(r.precio_platillo).toFixed(2), fechaEvaluacion)
+      );
+    } else {
+      for (const platilloId of idsPlatillos) {
+        const p = await this.obtenerPlatilloValidado(platilloId);
+        platillosInfo.set(platilloId, p);
+      }
+      const todas = await this.listarPromociones(true);
+      todasPromos = todas.filter((p) => itemsConsolidadosMap.has(p.platilloId));
+    }
 
     // Filtrar únicamente las que apliquen a los platillos de la orden y estén vigentes
     const promosElegibles = todasPromos.filter((p) => {
@@ -729,28 +892,67 @@ export class PromocionesService {
   /**
    * REVALIDACIÓN DE CONSISTENCIA PARA VENTAS (Criterio CW-14)
    * Compara una cotización previa con una reevaluación actual.
-   * Si cambiaron precios, vigencias o promociones, arroja COTIZACION_DESACTUALIZADA con el nuevo resultado.
+   * Valida la huella íntegra de la regla de promoción, partidas y precios.
+   * Si cambiaron precios, vigencias, parámetros o promociones, arroja COTIZACION_DESACTUALIZADA con el nuevo resultado.
+   * Admite opcionalmente un PoolClient para revalidación atómica dentro de la transacción de Ventas.
    */
-  static async validarConsistenciaCotizacion(cotizacionPrevia: ResultadoCotizacionDTO): Promise<ResultadoCotizacionDTO> {
+  static async validarConsistenciaCotizacion(
+    cotizacionPrevia: ResultadoCotizacionDTO,
+    clienteDb?: PoolClient | Pool,
+    bloquearParaConfirmacion: boolean = false
+  ): Promise<ResultadoCotizacionDTO> {
     const items: ItemCotizacionInput[] = cotizacionPrevia.partidas.map((p) => ({
       platilloId: p.platilloId,
       cantidad: p.cantidad
     }));
 
-    const cotizacionActual = await this.cotizarOrden(items, new Date());
+    const cotizacionActual = await this.cotizarOrden(
+      items,
+      new Date(),
+      clienteDb,
+      bloquearParaConfirmacion
+    );
 
-    const cambioPrecios = cotizacionPrevia.partidas.some((pPrevia) => {
-      const pActual = cotizacionActual.partidas.find((item) => item.platilloId === pPrevia.platilloId);
-      return !pActual || pActual.precioUnitario !== pPrevia.precioUnitario;
-    });
+    // 1. Huella íntegra de la regla aplicada (Finding 2 / CW-14)
+    // Compara versión o huella de la regla: ID, nombre, tipo, porcentaje, n, m, duración y ahorro
+    const prevPromo = cotizacionPrevia.promocionAplicada;
+    const actPromo = cotizacionActual.promocionAplicada;
 
-    const cambioPromo =
-      (cotizacionPrevia.promocionAplicada?.id || null) !== (cotizacionActual.promocionAplicada?.id || null) ||
-      (cotizacionPrevia.promocionAplicada?.ahorroTotal || '0.00') !== (cotizacionActual.promocionAplicada?.ahorroTotal || '0.00');
+    const huellaPromoPrev = prevPromo
+      ? `${prevPromo.id}|${prevPromo.nombre}|${prevPromo.tipo}|${prevPromo.porcentaje ?? ''}|${prevPromo.n ?? ''}|${prevPromo.m ?? ''}|${prevPromo.duracion}|${prevPromo.ahorroTotal}`
+      : 'SIN_PROMO';
 
-    const cambioTotal = cotizacionPrevia.total !== cotizacionActual.total;
+    const huellaPromoAct = actPromo
+      ? `${actPromo.id}|${actPromo.nombre}|${actPromo.tipo}|${actPromo.porcentaje ?? ''}|${actPromo.n ?? ''}|${actPromo.m ?? ''}|${actPromo.duracion}|${actPromo.ahorroTotal}`
+      : 'SIN_PROMO';
 
-    if (cambioPrecios || cambioPromo || cambioTotal) {
+    const cambioReglaPromo = huellaPromoPrev !== huellaPromoAct;
+
+    // 2. Comprobación exhaustiva de cada partida (precios, cantidades, descuentos, cobradas y bonificadas)
+    const cambioPartidas =
+      cotizacionPrevia.partidas.length !== cotizacionActual.partidas.length ||
+      cotizacionPrevia.partidas.some((pPrevia) => {
+        const pActual = cotizacionActual.partidas.find((item) => item.platilloId === pPrevia.platilloId);
+        if (!pActual) return true;
+        return (
+          pActual.precioUnitario !== pPrevia.precioUnitario ||
+          pActual.cantidad !== pPrevia.cantidad ||
+          pActual.subtotalBruto !== pPrevia.subtotalBruto ||
+          pActual.descuento !== pPrevia.descuento ||
+          pActual.subtotalNeto !== pPrevia.subtotalNeto ||
+          pActual.unidadesCobradas !== pPrevia.unidadesCobradas ||
+          pActual.unidadesBonificadas !== pPrevia.unidadesBonificadas ||
+          pActual.promocionAplicadaId !== pPrevia.promocionAplicadaId
+        );
+      });
+
+    // 3. Comprobación de totales monetarios
+    const cambioTotales =
+      cotizacionPrevia.total !== cotizacionActual.total ||
+      cotizacionPrevia.subtotalBruto !== cotizacionActual.subtotalBruto ||
+      cotizacionPrevia.descuentoTotal !== cotizacionActual.descuentoTotal;
+
+    if (cambioReglaPromo || cambioPartidas || cambioTotales) {
       throw new ErrorPromocion(
         'COTIZACION_DESACTUALIZADA',
         'Los precios o las condiciones de las promociones han cambiado. Por favor acepte el nuevo resumen.',
