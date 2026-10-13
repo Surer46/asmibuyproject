@@ -36,10 +36,23 @@ ventasRouter.post('/ventas/confirmar', exigirAutenticacion, async (req: Request,
  */
 ventasRouter.get('/ventas/recuperar/:claveIdempotencia', exigirAutenticacion, async (req: Request, res: Response) => {
   try {
+    const usuario = (req as any).usuario;
+    const usuarioId = usuario?.id || 1;
+    const perfil = usuario?.perfil || 'TRABAJADOR';
     const { claveIdempotencia } = req.params;
+
     const orden = await VentasService.buscarPorClaveIdempotencia(claveIdempotencia);
 
     if (orden) {
+      // Regla de control de acceso (CW-02 / Hallazgo 2 de Auditoría 1):
+      // Si el usuario es TRABAJADOR, no puede recuperar ni inspeccionar órdenes generadas por otros usuarios
+      if (perfil === 'TRABAJADOR' && orden.usuarioId !== usuarioId) {
+        return res.status(403).json({
+          codigo: 'ACCESO_DENEGADO',
+          mensaje: 'No tienes permiso para consultar o recuperar ventas de otros usuarios.',
+          detalles: null
+        });
+      }
       res.json({ encontrada: true, orden });
     } else {
       res.json({ encontrada: false, orden: null });

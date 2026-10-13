@@ -110,6 +110,7 @@ export interface PartidaOrdenInterna {
   descuento: Decimal;
   subtotalNeto: Decimal;
   promocionId: number | null;
+  recetaSnapshot?: any | null;
   creadoEn: Date;
 }
 
@@ -126,6 +127,11 @@ export interface OrdenInterna {
   promocionId: number | null;
   promocionNombre: string | null;
   promocionTipo: string | null;
+  promocionPorcentaje?: Decimal | null;
+  promocionN?: number | null;
+  promocionM?: number | null;
+  promocionVigenciaInicio?: Date | null;
+  promocionVigenciaFin?: Date | null;
   promocionAhorro: Decimal | null;
   motivoAnulacion: string | null;
   usuarioAnulacionId: number | null;
@@ -133,5 +139,6 @@ export interface OrdenInterna {
   creadoEn: Date;
   actualizadoEn: Date;
 }
+
 
 

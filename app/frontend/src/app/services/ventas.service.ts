@@ -19,12 +19,18 @@ export interface PartidaOrdenDTO {
   descuento: string;
   subtotalNeto: string;
   promocionId: number | null;
+  recetaSnapshot?: any | null;
 }
 
 export interface PromocionSnapshotDTO {
   id: number | null;
   nombre: string | null;
   tipo: string | null;
+  porcentaje: string | null;
+  n: number | null;
+  m: number | null;
+  vigenciaInicio: string | null;
+  vigenciaFin: string | null;
   ahorro: string | null;
 }
 

@@ -27,6 +27,14 @@ export class ErrorVenta extends Error {
   }
 }
 
+export interface InsumoRecetaSnapshot {
+  ingredienteId: number;
+  nombreIngrediente: string;
+  unidad: string;
+  cantidadPorPlatillo: string;
+  consumoTotal: string;
+}
+
 export interface PartidaOrdenDTO {
   id: number;
   platilloId: number;
@@ -39,12 +47,18 @@ export interface PartidaOrdenDTO {
   descuento: string;
   subtotalNeto: string;
   promocionId: number | null;
+  recetaSnapshot?: InsumoRecetaSnapshot[] | null;
 }
 
 export interface PromocionSnapshotDTO {
   id: number | null;
   nombre: string | null;
   tipo: string | null;
+  porcentaje: string | null;
+  n: number | null;
+  m: number | null;
+  vigenciaInicio: string | null;
+  vigenciaFin: string | null;
   ahorro: string | null;
 }
 
@@ -90,6 +104,8 @@ export interface ResumenPeriodoVentasDTO {
 }
 
 export class VentasService {
+  private static clavesEnVuelo = new Set<string>();
+
   /**
    * Genera un folio formateado para la orden: ej. ORD-00001
    */
@@ -98,14 +114,133 @@ export class VentasService {
   }
 
   /**
+   * Valida la correspondencia estricta entre los items del carrito y las partidas de la cotización aceptada.
+   * Resuelve el Hallazgo Crítico 1 (W4-03 / CW-07 / CW-14).
+   */
+  private static validarCorrespondenciaCarritoCotizacion(
+    items: ItemVentaInput[],
+    cotizacionAceptada: ResultadoCotizacionDTO
+  ): void {
+    const carritoConsolidado = new Map<number, number>();
+    for (const it of items) {
+      const cant = carritoConsolidado.get(it.platilloId) || 0;
+      carritoConsolidado.set(it.platilloId, cant + it.cantidad);
+    }
+
+    const cotizacionConsolidada = new Map<number, number>();
+    for (const p of cotizacionAceptada.partidas) {
+      const cant = cotizacionConsolidada.get(p.platilloId) || 0;
+      cotizacionConsolidada.set(p.platilloId, cant + p.cantidad);
+    }
+
+    if (carritoConsolidado.size !== cotizacionConsolidada.size) {
+      throw new ErrorVenta(
+        'DISCREPANCIA_CARRITO_COTIZACION',
+        'El número de platillos distintos en el carrito no coincide con las partidas de la cotización aceptada.',
+        400
+      );
+    }
+
+    for (const [platilloId, cantidadCarrito] of carritoConsolidado.entries()) {
+      const cantidadCotizada = cotizacionConsolidada.get(platilloId);
+      if (cantidadCotizada === undefined || cantidadCotizada !== cantidadCarrito) {
+        throw new ErrorVenta(
+          'DISCREPANCIA_CARRITO_COTIZACION',
+          `Discrepancia entre el carrito y la cotización para el platillo ID ${platilloId}: en carrito ${cantidadCarrito}, en cotización ${cantidadCotizada ?? 0}.`,
+          400
+        );
+      }
+    }
+  }
+
+  /**
+   * Compara la huella completa de una solicitud contra una orden existente para resolver
+   * reintentos legítimos de idempotencia o detectar conflictos de parámetros (Hallazgo Alta 3 / CW-07).
+   */
+  private static verificarReintentoIdempotente(
+    ordenExistente: OrdenDTO,
+    usuarioId: number,
+    metodoPago: MetodoPago,
+    items: ItemVentaInput[],
+    cotizacionAceptada: ResultadoCotizacionDTO
+  ): OrdenDTO {
+    const mismoUsuario = ordenExistente.usuarioId === usuarioId;
+    const mismoMetodo = ordenExistente.metodoPago === metodoPago;
+    const mismoTotal = ordenExistente.total === cotizacionAceptada.total;
+
+    const carritoConsolidado = new Map<number, number>();
+    for (const it of items) {
+      const cant = carritoConsolidado.get(it.platilloId) || 0;
+      carritoConsolidado.set(it.platilloId, cant + it.cantidad);
+    }
+
+    const ordenConsolidada = new Map<number, number>();
+    for (const p of ordenExistente.partidas) {
+      const cant = ordenConsolidada.get(p.platilloId) || 0;
+      ordenConsolidada.set(p.platilloId, cant + p.cantidad);
+    }
+
+    const mismasPartidas =
+      carritoConsolidado.size === ordenConsolidada.size &&
+      Array.from(carritoConsolidado.entries()).every(
+        ([pid, cant]) => ordenConsolidada.get(pid) === cant
+      );
+
+    if (mismoUsuario && mismoMetodo && mismoTotal && mismasPartidas) {
+      return ordenExistente;
+    } else {
+      throw new ErrorVenta(
+        'IDEMPOTENCIA_CONFLICTO',
+        'La clave de idempotencia especificada ya fue utilizada para una venta diferente.',
+        409
+      );
+    }
+  }
+
+  /**
+   * Normaliza los rangos de fechas para el filtrado de historial con soporte de cierre de día inclusivo
+   * (Hallazgo Media 8 / W4-04).
+   */
+  private static parsearRangoFechas(filtro: { fechaInicio?: string; fechaFin?: string }): {
+    fechaInicioISO: string | null;
+    fechaFinISO: string | null;
+  } {
+    let fechaInicioISO: string | null = null;
+    let fechaFinISO: string | null = null;
+
+    if (filtro.fechaInicio && filtro.fechaInicio.trim()) {
+      const str = filtro.fechaInicio.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        fechaInicioISO = `${str}T00:00:00.000Z`;
+      } else {
+        const d = new Date(str);
+        fechaInicioISO = isNaN(d.getTime()) ? null : d.toISOString();
+      }
+    }
+
+    if (filtro.fechaFin && filtro.fechaFin.trim()) {
+      const str = filtro.fechaFin.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        fechaFinISO = `${str}T23:59:59.999Z`;
+      } else {
+        const d = new Date(str);
+        fechaFinISO = isNaN(d.getTime()) ? null : d.toISOString();
+      }
+    }
+
+    return { fechaInicioISO, fechaFinISO };
+  }
+
+  /**
    * CONFIRMAR VENTA TRANSACCIONALMENTE (W4-03 / Criterios CW-05, CW-06, CW-07, CW-14, CW-15)
-   * 1. Verifica clave de idempotencia (CW-07).
-   * 2. Revalida la consistencia de cotización contra el estado actual de la BD (CW-14).
-   * 3. Valida método de pago y montos.
-   * 4. Abre transacción atómica única (PoolClient con BEGIN/COMMIT/ROLLBACK).
-   * 5. Inserta encabezado de orden y detalle de partidas (snapshots inmutables).
-   * 6. Descuenta el inventario mediante InventarioService.descontarInventarioPorVenta (CW-05).
-   * 7. En caso de error (ej. STOCK_INSUFICIENTE), ejecuta ROLLBACK sin efectos colaterales (CW-06).
+   * 1. Verifica clave de idempotencia y huella completa (CW-07).
+   * 2. Compara exactamente carrito contra partidas cotizadas (CW-07 / CW-14).
+   * 3. Revalida la consistencia de cotización dentro de la transacción (CW-14).
+   * 4. Valida método de pago y montos.
+   * 5. Abre transacción atómica única (PoolClient con BEGIN/COMMIT/ROLLBACK).
+   * 6. Inserta encabezado de orden y detalle con snapshots históricos completos (CW-15).
+   * 7. Descuenta el inventario mediante InventarioService.descontarInventarioPorVenta (CW-05).
+   * 8. Resuelve colisiones concurrentes en clave de idempotencia reconsultando la operación original (CW-07).
    */
   static async confirmarVenta(input: ConfirmarVentaInput, usuarioId: number): Promise<OrdenDTO> {
     const { claveIdempotencia, metodoPago, items, cotizacionAceptada } = input;
@@ -132,7 +267,16 @@ export class VentasService {
       throw new ErrorVenta('DATOS_INVALIDOS', 'La cotización aceptada es obligatoria.');
     }
 
-    // 2. Validación de Método de Pago según importe total
+    // 2. Verificación de Idempotencia previa con huella íntegra (Hallazgo Alta 3 / CW-07)
+    const ordenExistente = await this.buscarPorClaveIdempotencia(claveIdempotencia.trim());
+    if (ordenExistente) {
+      return this.verificarReintentoIdempotente(ordenExistente, usuarioId, metodoPago, items, cotizacionAceptada);
+    }
+
+    // 3. Validación estricta de correspondencia entre Carrito y Cotización Aceptada (Hallazgo Crítico 1 / CW-07 / CW-14)
+    this.validarCorrespondenciaCarritoCotizacion(items, cotizacionAceptada);
+
+    // 4. Validación de Método de Pago según importe total
     const totalDec = new Decimal(cotizacionAceptada.total);
     if (totalDec.isZero()) {
       if (metodoPago !== 'SIN_COBRO') {
@@ -150,63 +294,93 @@ export class VentasService {
       }
     }
 
-    // 3. Verificación de Idempotencia previa (Criterio CW-07)
-    const ordenExistente = await this.buscarPorClaveIdempotencia(claveIdempotencia.trim());
-    if (ordenExistente) {
-      // Verificar si coincide el contenido
-      const mismoUsuario = ordenExistente.usuarioId === usuarioId;
-      const mismoTotal = ordenExistente.total === cotizacionAceptada.total;
-      const mismasPartidas =
-        ordenExistente.partidas.length === items.length &&
-        items.every((it) => {
-          const p = ordenExistente.partidas.find((p) => p.platilloId === it.platilloId);
-          return p && p.cantidad === it.cantidad;
-        });
-
-      if (mismoUsuario && mismoTotal && mismasPartidas) {
-        // Reintento legítimo / Doble clic / Respuesta perdida: retornar la misma orden
-        return ordenExistente;
-      } else {
-        throw new ErrorVenta(
-          'IDEMPOTENCIA_CONFLICTO',
-          'La clave de idempotencia especificada ya fue utilizada para una venta diferente.',
-          409
-        );
-      }
-    }
-
-    // 4. Revalidación Económica de Consistencia (Criterio CW-14)
-    // Invoca PromocionesService para garantizar que ni precios ni promociones hayan cambiado
-    const cotizacionValida = await PromocionesService.validarConsistenciaCotizacion(cotizacionAceptada);
-
-    // 5. Preparar items de consumo para Inventario (Criterio CW-05 / CW-12)
-    // La demanda total por platillo debe consumir las unidades físicas entregadas (q), incluyendo bonificadas
-    const itemsConsumo: ItemConsumoDTO[] = cotizacionValida.partidas.map((p) => ({
-      platilloId: p.platilloId,
-      cantidadPlatillos: p.cantidad
-    }));
-
     const ahora = new Date();
-    const promoSnapshot = cotizacionValida.promocionAplicada;
 
-    // 6. Ejecución Transaccional Atómica
+    // 5. Ejecución Transaccional Atómica (PostgreSQL Real)
     if (process.env.DATABASE_URL) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
 
-        // Insertar encabezado de la orden
+        // Hallazgo Alta 4 / CW-14: Revalidar consistencia de cotización DENTRO de la transacción
+        // con bloqueo determinista ordenado en los registros participantes
+        const cotizacionValida = await PromocionesService.validarConsistenciaCotizacion(
+          cotizacionAceptada,
+          client,
+          true
+        );
+
+        if (cotizacionValida.total !== cotizacionAceptada.total) {
+          throw new ErrorVenta(
+            'COTIZACION_DESACTUALIZADA',
+            'Las condiciones económicas o de precios cambiaron durante la confirmación. Por favor revalida la cotización.',
+            409
+          );
+        }
+
+        const promoSnapshot = cotizacionValida.promocionAplicada;
+
+        // Consultar recetas de los platillos vendidos en la misma transacción para el snapshot histórico
+        const platilloIds = Array.from(new Set(items.map((i) => i.platilloId))).sort((a, b) => a - b);
+        const recetasRes = await client.query(
+          `SELECT r.platillo_id, r.ingrediente_id, r.cantidad, i.nombre AS nombre_ingrediente, i.unidad
+           FROM receta_detalle r
+           JOIN ingredientes i ON r.ingrediente_id = i.id
+           WHERE r.platillo_id = ANY($1)
+           ORDER BY r.platillo_id, r.ingrediente_id;`,
+          [platilloIds]
+        );
+
+        const recetasPorPlatillo = new Map<number, Array<{
+          ingredienteId: number;
+          nombreIngrediente: string;
+          unidad: string;
+          cantidad: string;
+        }>>();
+
+        for (const r of recetasRes.rows) {
+          if (!recetasPorPlatillo.has(r.platillo_id)) {
+            recetasPorPlatillo.set(r.platillo_id, []);
+          }
+          recetasPorPlatillo.get(r.platillo_id)!.push({
+            ingredienteId: r.ingrediente_id,
+            nombreIngrediente: r.nombre_ingrediente,
+            unidad: r.unidad,
+            cantidad: r.cantidad
+          });
+        }
+
+        // Consultar vigencia de la promoción participante si existe
+        let vigenciaInicioDb: string | null = null;
+        let vigenciaFinDb: string | null = null;
+        if (promoSnapshot?.id) {
+          const prRes = await client.query('SELECT fecha_inicio, fecha_fin FROM promociones WHERE id = $1', [
+            promoSnapshot.id
+          ]);
+          if (prRes.rows.length > 0) {
+            vigenciaInicioDb = prRes.rows[0].fecha_inicio ? new Date(prRes.rows[0].fecha_inicio).toISOString() : null;
+            vigenciaFinDb = prRes.rows[0].fecha_fin ? new Date(prRes.rows[0].fecha_fin).toISOString() : null;
+          }
+        }
+
+        // Insertar encabezado de la orden con snapshot promocional completo (Hallazgo Alta 7 / CW-15)
         const queryOrden = `
           INSERT INTO ordenes (
             folio, clave_idempotencia, usuario_id, estado, metodo_pago,
             subtotal_bruto, descuento_total, total,
-            promocion_id, promocion_nombre, promocion_tipo, promocion_ahorro,
+            promocion_id, promocion_nombre, promocion_tipo,
+            promocion_porcentaje, promocion_n, promocion_m,
+            promocion_vigencia_inicio, promocion_vigencia_fin,
+            promocion_ahorro,
             creado_en, actualizado_en
           ) VALUES (
             'PENDIENTE', $1, $2, 'CONFIRMADA', $3,
             $4, $5, $6,
-            $7, $8, $9, $10,
-            $11, $11
+            $7, $8, $9,
+            $10, $11, $12,
+            $13, $14,
+            $15,
+            $16, $16
           ) RETURNING id;
         `;
 
@@ -220,6 +394,11 @@ export class VentasService {
           promoSnapshot?.id || null,
           promoSnapshot?.nombre || null,
           promoSnapshot?.tipo || null,
+          promoSnapshot?.porcentaje || null,
+          promoSnapshot?.n || null,
+          promoSnapshot?.m || null,
+          vigenciaInicioDb,
+          vigenciaFinDb,
           promoSnapshot?.ahorroTotal || null,
           ahora
         ]);
@@ -230,18 +409,27 @@ export class VentasService {
         // Actualizar folio con el número de orden asignado
         await client.query('UPDATE ordenes SET folio = $1 WHERE id = $2', [folioGenerado, ordenId]);
 
-        // Insertar partidas de orden_detalle
+        // Insertar partidas de orden_detalle con snapshot de receta por partida (Hallazgo Alta 7 / CW-15)
         const queryDetalle = `
           INSERT INTO orden_detalle (
             orden_id, platillo_id, nombre_platillo, precio_unitario, cantidad,
             unidades_cobradas, unidades_bonificadas, subtotal_bruto, descuento,
-            subtotal_neto, promocion_id, creado_en
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            subtotal_neto, promocion_id, receta_snapshot, creado_en
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING id;
         `;
 
         const partidasDTO: PartidaOrdenDTO[] = [];
         for (const p of cotizacionValida.partidas) {
+          const ingredientesReceta = recetasPorPlatillo.get(p.platilloId) || [];
+          const recetaSnap: InsumoRecetaSnapshot[] = ingredientesReceta.map((ing) => ({
+            ingredienteId: ing.ingredienteId,
+            nombreIngrediente: ing.nombreIngrediente,
+            unidad: ing.unidad,
+            cantidadPorPlatillo: ing.cantidad,
+            consumoTotal: new Decimal(ing.cantidad).times(p.cantidad).toString()
+          }));
+
           const resDet = await client.query(queryDetalle, [
             ordenId,
             p.platilloId,
@@ -254,6 +442,7 @@ export class VentasService {
             p.descuento,
             p.subtotalNeto,
             p.promocionAplicadaId,
+            JSON.stringify(recetaSnap),
             ahora
           ]);
 
@@ -268,11 +457,16 @@ export class VentasService {
             subtotalBruto: p.subtotalBruto,
             descuento: p.descuento,
             subtotalNeto: p.subtotalNeto,
-            promocionId: p.promocionAplicadaId
+            promocionId: p.promocionAplicadaId,
+            recetaSnapshot: recetaSnap
           });
         }
 
         // Descontar inventario en la misma transacción (Criterios CW-05 y CW-06)
+        const itemsConsumo: ItemConsumoDTO[] = cotizacionValida.partidas.map((p) => ({
+          platilloId: p.platilloId,
+          cantidadPlatillos: p.cantidad
+        }));
         await InventarioService.descontarInventarioPorVenta(client, ordenId, usuarioId, itemsConsumo);
 
         await client.query('COMMIT');
@@ -297,6 +491,11 @@ export class VentasService {
                 id: promoSnapshot.id,
                 nombre: promoSnapshot.nombre,
                 tipo: promoSnapshot.tipo,
+                porcentaje: promoSnapshot.porcentaje || null,
+                n: promoSnapshot.n || null,
+                m: promoSnapshot.m || null,
+                vigenciaInicio: vigenciaInicioDb,
+                vigenciaFin: vigenciaFinDb,
                 ahorro: promoSnapshot.ahorroTotal
               }
             : null,
@@ -309,43 +508,101 @@ export class VentasService {
         };
       } catch (err: any) {
         await client.query('ROLLBACK');
+        client.release();
+
+        // Hallazgo Alta 3: Carrera concurrente en clave_idempotencia (SQL 23505)
+        if (
+          err.code === '23505' &&
+          (err.constraint?.includes('idempotencia') ||
+            err.message?.includes('clave_idempotencia') ||
+            err.detail?.includes('clave_idempotencia'))
+        ) {
+          const ordenConcurrente = await this.buscarPorClaveIdempotencia(claveIdempotencia.trim());
+          if (ordenConcurrente) {
+            return this.verificarReintentoIdempotente(
+              ordenConcurrente,
+              usuarioId,
+              metodoPago,
+              items,
+              cotizacionAceptada
+            );
+          }
+        }
+
         if (err instanceof ErrorVenta) throw err;
         throw err;
-      } finally {
-        client.release();
       }
     }
 
-    // Modo Memoria (Fallback sin PostgreSQL)
-    const ordenId = almacenMemoria.proxOrdenId++;
-    const folioGenerado = this.formatearFolio(ordenId);
+    // 6. Modo Memoria (Fallback sin PostgreSQL)
+    const claveTrim = claveIdempotencia.trim();
 
-    const nuevaOrden: OrdenInterna = {
-      id: ordenId,
-      folio: folioGenerado,
-      claveIdempotencia: claveIdempotencia.trim(),
-      usuarioId,
-      estado: 'CONFIRMADA',
-      metodoPago,
-      subtotalBruto: new Decimal(cotizacionValida.subtotalBruto),
-      descuentoTotal: new Decimal(cotizacionValida.descuentoTotal),
-      total: new Decimal(cotizacionValida.total),
-      promocionId: promoSnapshot?.id || null,
-      promocionNombre: promoSnapshot?.nombre || null,
-      promocionTipo: promoSnapshot?.tipo || null,
-      promocionAhorro: promoSnapshot ? new Decimal(promoSnapshot.ahorroTotal) : null,
-      motivoAnulacion: null,
-      usuarioAnulacionId: null,
-      anuladoEn: null,
-      creadoEn: ahora,
-      actualizadoEn: ahora
-    };
+    // Si ya existe la orden en memoria, devolver reintento o lanzar conflicto
+    const ordenExistenteMem = almacenMemoria.ordenes.find((o) => o.claveIdempotencia === claveTrim);
+    if (ordenExistenteMem) {
+      const dto = this.mapearInternoADTO(
+        ordenExistenteMem,
+        almacenMemoria.ordenDetalles.filter((d) => d.ordenId === ordenExistenteMem.id)
+      );
+      return this.verificarReintentoIdempotente(dto, usuarioId, metodoPago, items, cotizacionAceptada);
+    }
 
+    // Si hay una operación concurrente en vuelo con esta clave, esperar a que finalice
+    if (VentasService.clavesEnVuelo.has(claveTrim)) {
+      while (VentasService.clavesEnVuelo.has(claveTrim)) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      const ordConcurrente = almacenMemoria.ordenes.find((o) => o.claveIdempotencia === claveTrim);
+      if (ordConcurrente) {
+        const dto = this.mapearInternoADTO(
+          ordConcurrente,
+          almacenMemoria.ordenDetalles.filter((d) => d.ordenId === ordConcurrente.id)
+        );
+        return this.verificarReintentoIdempotente(dto, usuarioId, metodoPago, items, cotizacionAceptada);
+      }
+    }
+
+    VentasService.clavesEnVuelo.add(claveTrim);
+    try {
+      // Revalidación económica consistente en memoria
+      const cotizacionValida = await PromocionesService.validarConsistenciaCotizacion(cotizacionAceptada);
+
+      if (cotizacionValida.total !== cotizacionAceptada.total) {
+        throw new ErrorVenta(
+          'COTIZACION_DESACTUALIZADA',
+          'Las condiciones económicas o de precios cambiaron durante la confirmación. Por favor revalida la cotización.',
+          409
+        );
+      }
+
+      const promoSnapshot = cotizacionValida.promocionAplicada;
+      const itemsConsumo: ItemConsumoDTO[] = cotizacionValida.partidas.map((p) => ({
+        platilloId: p.platilloId,
+        cantidadPlatillos: p.cantidad
+      }));
+
+      const ordenId = almacenMemoria.proxOrdenId++;
+      const folioGenerado = this.formatearFolio(ordenId);
+
+    // Preparar snapshot de recetas en memoria
     const partidasDTO: PartidaOrdenDTO[] = [];
     const partidasInternas: PartidaOrdenInterna[] = [];
 
     for (const p of cotizacionValida.partidas) {
       const detId = almacenMemoria.proxOrdenDetalleId++;
+      const ingredientesReceta = almacenMemoria.recetas
+        .filter((r) => r.platilloId === p.platilloId)
+        .map((r) => {
+          const ing = almacenMemoria.ingredientes.find((i) => i.id === r.ingredienteId);
+          return {
+            ingredienteId: r.ingredienteId,
+            nombreIngrediente: ing?.nombre || `Ingrediente #${r.ingredienteId}`,
+            unidad: ing?.unidad || 'unidad',
+            cantidadPorPlatillo: r.cantidad.toString(),
+            consumoTotal: r.cantidad.times(p.cantidad).toString()
+          };
+        });
+
       const detInterno: PartidaOrdenInterna = {
         id: detId,
         ordenId,
@@ -359,6 +616,7 @@ export class VentasService {
         descuento: new Decimal(p.descuento),
         subtotalNeto: new Decimal(p.subtotalNeto),
         promocionId: p.promocionAplicadaId,
+        recetaSnapshot: ingredientesReceta,
         creadoEn: ahora
       };
       partidasInternas.push(detInterno);
@@ -374,14 +632,48 @@ export class VentasService {
         subtotalBruto: p.subtotalBruto,
         descuento: p.descuento,
         subtotalNeto: p.subtotalNeto,
-        promocionId: p.promocionAplicadaId
+        promocionId: p.promocionAplicadaId,
+        recetaSnapshot: ingredientesReceta
       });
     }
 
-    // Descontar inventario en memoria (lanzará STOCK_INSUFICIENTE si no alcanza)
+    // Descontar inventario en memoria primero (lanzará STOCK_INSUFICIENTE si no alcanza, simulando rollback)
     await InventarioService.descontarInventarioPorVenta(null, ordenId, usuarioId, itemsConsumo);
 
-    // Solo si el descuento no lanzó error, persistimos la orden y partidas
+    let vigenciaInicioMem: Date | null = null;
+    let vigenciaFinMem: Date | null = null;
+    if (promoSnapshot?.id) {
+      const prMem = almacenMemoria.promociones.find((pr) => pr.id === promoSnapshot.id);
+      vigenciaInicioMem = prMem?.fechaInicio || null;
+      vigenciaFinMem = prMem?.fechaFin || null;
+    }
+
+    const nuevaOrden: OrdenInterna = {
+      id: ordenId,
+      folio: folioGenerado,
+      claveIdempotencia: claveIdempotencia.trim(),
+      usuarioId,
+      estado: 'CONFIRMADA',
+      metodoPago,
+      subtotalBruto: new Decimal(cotizacionValida.subtotalBruto),
+      descuentoTotal: new Decimal(cotizacionValida.descuentoTotal),
+      total: new Decimal(cotizacionValida.total),
+      promocionId: promoSnapshot?.id || null,
+      promocionNombre: promoSnapshot?.nombre || null,
+      promocionTipo: promoSnapshot?.tipo || null,
+      promocionPorcentaje: promoSnapshot?.porcentaje ? new Decimal(promoSnapshot.porcentaje) : null,
+      promocionN: promoSnapshot?.n || null,
+      promocionM: promoSnapshot?.m || null,
+      promocionVigenciaInicio: vigenciaInicioMem,
+      promocionVigenciaFin: vigenciaFinMem,
+      promocionAhorro: promoSnapshot ? new Decimal(promoSnapshot.ahorroTotal) : null,
+      motivoAnulacion: null,
+      usuarioAnulacionId: null,
+      anuladoEn: null,
+      creadoEn: ahora,
+      actualizadoEn: ahora
+    };
+
     almacenMemoria.ordenes.push(nuevaOrden);
     almacenMemoria.ordenDetalles.push(...partidasInternas);
 
@@ -401,6 +693,11 @@ export class VentasService {
             id: promoSnapshot.id,
             nombre: promoSnapshot.nombre,
             tipo: promoSnapshot.tipo,
+            porcentaje: promoSnapshot.porcentaje || null,
+            n: promoSnapshot.n || null,
+            m: promoSnapshot.m || null,
+            vigenciaInicio: vigenciaInicioMem ? vigenciaInicioMem.toISOString() : null,
+            vigenciaFin: vigenciaFinMem ? vigenciaFinMem.toISOString() : null,
             ahorro: promoSnapshot.ahorroTotal
           }
         : null,
@@ -411,6 +708,9 @@ export class VentasService {
       anuladoEn: null,
       creadoEn: ahora.toISOString()
     };
+    } finally {
+      VentasService.clavesEnVuelo.delete(claveTrim);
+    }
   }
 
   /**
@@ -491,7 +791,7 @@ export class VentasService {
       throw new ErrorVenta('ORDEN_NO_ENCONTRADA', `La orden con ID ${id} no existe.`, 404);
     }
 
-    // Regla de acceso: Si es TRABAJADOR, solo puede consultar sus propias ventas
+    // Regla de acceso: Si es TRABAJADOR, solo puede consultar sus propias ventas (CW-02)
     if (perfil === 'TRABAJADOR' && orden.usuarioId !== usuarioId) {
       throw new ErrorVenta('ACCESO_DENEGADO', 'No tienes permiso para consultar ventas de otros usuarios.', 403);
     }
@@ -504,6 +804,7 @@ export class VentasService {
    * - TRABAJADOR: Ve únicamente sus propias ventas.
    * - ADMINISTRADOR: Ve todas las ventas.
    * - totalVentasConfirmadas suma exclusivamente ventas CONFIRMADAS; las ANULADAS se excluyen.
+   * - Soporta filtro de fecha con cierre de día inclusivo (Hallazgo Media 8).
    */
   static async listarHistorial(
     filtro: { fechaInicio?: string; fechaFin?: string },
@@ -511,6 +812,7 @@ export class VentasService {
     perfil: string
   ): Promise<ResumenPeriodoVentasDTO> {
     const ordenesList: OrdenDTO[] = [];
+    const { fechaInicioISO, fechaFinISO } = this.parsearRangoFechas(filtro);
 
     if (process.env.DATABASE_URL) {
       try {
@@ -529,13 +831,13 @@ export class VentasService {
           sql += ` AND o.usuario_id = $${params.length}`;
         }
 
-        // Filtro por rango de fechas (UTC)
-        if (filtro.fechaInicio) {
-          params.push(new Date(filtro.fechaInicio).toISOString());
+        // Filtro por rango de fechas (UTC inclusivo)
+        if (fechaInicioISO) {
+          params.push(fechaInicioISO);
           sql += ` AND o.creado_en >= $${params.length}`;
         }
-        if (filtro.fechaFin) {
-          params.push(new Date(filtro.fechaFin).toISOString());
+        if (fechaFinISO) {
+          params.push(fechaFinISO);
           sql += ` AND o.creado_en <= $${params.length}`;
         }
 
@@ -564,12 +866,12 @@ export class VentasService {
       lista = lista.filter((o) => o.usuarioId === usuarioId);
     }
 
-    if (filtro.fechaInicio) {
-      const ini = new Date(filtro.fechaInicio).getTime();
+    if (fechaInicioISO) {
+      const ini = new Date(fechaInicioISO).getTime();
       lista = lista.filter((o) => o.creadoEn.getTime() >= ini);
     }
-    if (filtro.fechaFin) {
-      const fin = new Date(filtro.fechaFin).getTime();
+    if (fechaFinISO) {
+      const fin = new Date(fechaFinISO).getTime();
       lista = lista.filter((o) => o.creadoEn.getTime() <= fin);
     }
 
@@ -587,7 +889,8 @@ export class VentasService {
    * ANULACIÓN SENCILLA DE VENTA (W4-05 / Criterio CW-16)
    * - Solo ADMINISTRADOR puede anular.
    * - Requiere motivo obligatorio.
-   * - Es idempotente (si ya está anulada devuelve la orden existente).
+   * - Es estrictamente atómica e idempotente (WHERE estado = 'CONFIRMADA').
+   * - Previene sobreescrituras en carreras concurrentes de anulación (Hallazgo Alta 5).
    * - Conserva el registro original; no permite borrar ni editar partidas.
    * - No realiza reintegro automático de inventario (los insumos ya salieron físicamente).
    * - Excluye la orden del total vigente del periodo.
@@ -604,7 +907,7 @@ export class VentasService {
 
     const orden = await this.obtenerPorId(id, usuarioId, perfil);
 
-    // Idempotencia: si ya está ANULADA, retornar la misma
+    // Idempotencia: si ya está ANULADA, retornar la misma sin modificar motivo ni autor
     if (orden.estado === 'ANULADA') {
       return orden;
     }
@@ -612,6 +915,7 @@ export class VentasService {
     const ahora = new Date();
 
     if (process.env.DATABASE_URL) {
+      // Actualización condicional atómica: solo altera si el estado actual es CONFIRMADA
       const sql = `
         UPDATE ordenes SET
           estado = 'ANULADA',
@@ -619,22 +923,35 @@ export class VentasService {
           usuario_anulacion_id = $2,
           anulado_en = $3,
           actualizado_en = $3
-        WHERE id = $4
+        WHERE id = $4 AND estado = 'CONFIRMADA'
         RETURNING *;
       `;
-      await pool.query(sql, [motivoTrim, usuarioId, ahora, id]);
+      const updateRes = await pool.query(sql, [motivoTrim, usuarioId, ahora, id]);
+
+      if (updateRes.rows.length === 0) {
+        // En concurrencia, otra transacción ya ejecutó la anulación: devolver el registro original
+        return this.obtenerPorId(id, usuarioId, perfil);
+      }
+
       return this.obtenerPorId(id, usuarioId, perfil);
     }
 
-    // Memoria
+    // Memoria: protección atómica condicional
     const idx = almacenMemoria.ordenes.findIndex((o) => o.id === id);
-    if (idx !== -1) {
-      almacenMemoria.ordenes[idx].estado = 'ANULADA';
-      almacenMemoria.ordenes[idx].motivoAnulacion = motivoTrim;
-      almacenMemoria.ordenes[idx].usuarioAnulacionId = usuarioId;
-      almacenMemoria.ordenes[idx].anuladoEn = ahora;
-      almacenMemoria.ordenes[idx].actualizadoEn = ahora;
+    if (idx === -1) {
+      throw new ErrorVenta('ORDEN_NO_ENCONTRADA', `La orden con ID ${id} no existe.`, 404);
     }
+
+    // Si ya fue anulada por otra llamada concurrente, devolver intacta
+    if (almacenMemoria.ordenes[idx].estado === 'ANULADA') {
+      return this.obtenerPorId(id, usuarioId, perfil);
+    }
+
+    almacenMemoria.ordenes[idx].estado = 'ANULADA';
+    almacenMemoria.ordenes[idx].motivoAnulacion = motivoTrim;
+    almacenMemoria.ordenes[idx].usuarioAnulacionId = usuarioId;
+    almacenMemoria.ordenes[idx].anuladoEn = ahora;
+    almacenMemoria.ordenes[idx].actualizadoEn = ahora;
 
     return this.obtenerPorId(id, usuarioId, perfil);
   }
@@ -672,19 +989,27 @@ export class VentasService {
   }
 
   private static mapearFilaADTO(row: any, partidasRows: any[]): OrdenDTO {
-    const partidas: PartidaOrdenDTO[] = partidasRows.map((r) => ({
-      id: Number(r.id),
-      platilloId: Number(r.platillo_id),
-      nombrePlatillo: r.nombre_platillo,
-      precioUnitario: new Decimal(r.precio_unitario).toFixed(2),
-      cantidad: Number(r.cantidad),
-      unidadesCobradas: Number(r.unidades_cobradas),
-      unidadesBonificadas: Number(r.unidades_bonificadas || 0),
-      subtotalBruto: new Decimal(r.subtotal_bruto).toFixed(2),
-      descuento: new Decimal(r.descuento || 0).toFixed(2),
-      subtotalNeto: new Decimal(r.subtotal_neto).toFixed(2),
-      promocionId: r.promocion_id ? Number(r.promocion_id) : null
-    }));
+    const partidas: PartidaOrdenDTO[] = partidasRows.map((r) => {
+      let recetaParsed: InsumoRecetaSnapshot[] | null = null;
+      if (r.receta_snapshot) {
+        recetaParsed = typeof r.receta_snapshot === 'string' ? JSON.parse(r.receta_snapshot) : r.receta_snapshot;
+      }
+
+      return {
+        id: Number(r.id),
+        platilloId: Number(r.platillo_id),
+        nombrePlatillo: r.nombre_platillo,
+        precioUnitario: new Decimal(r.precio_unitario).toFixed(2),
+        cantidad: Number(r.cantidad),
+        unidadesCobradas: Number(r.unidades_cobradas),
+        unidadesBonificadas: Number(r.unidades_bonificadas || 0),
+        subtotalBruto: new Decimal(r.subtotal_bruto).toFixed(2),
+        descuento: new Decimal(r.descuento || 0).toFixed(2),
+        subtotalNeto: new Decimal(r.subtotal_neto).toFixed(2),
+        promocionId: r.promocion_id ? Number(r.promocion_id) : null,
+        recetaSnapshot: recetaParsed
+      };
+    });
 
     return {
       id: Number(row.id),
@@ -702,6 +1027,11 @@ export class VentasService {
             id: Number(row.promocion_id),
             nombre: row.promocion_nombre,
             tipo: row.promocion_tipo,
+            porcentaje: row.promocion_porcentaje ? new Decimal(row.promocion_porcentaje).toFixed(2) : null,
+            n: row.promocion_n !== null && row.promocion_n !== undefined ? Number(row.promocion_n) : null,
+            m: row.promocion_m !== null && row.promocion_m !== undefined ? Number(row.promocion_m) : null,
+            vigenciaInicio: row.promocion_vigencia_inicio ? new Date(row.promocion_vigencia_inicio).toISOString() : null,
+            vigenciaFin: row.promocion_vigencia_fin ? new Date(row.promocion_vigencia_fin).toISOString() : null,
             ahorro: row.promocion_ahorro ? new Decimal(row.promocion_ahorro).toFixed(2) : null
           }
         : null,
@@ -726,7 +1056,8 @@ export class VentasService {
       subtotalBruto: p.subtotalBruto.toFixed(2),
       descuento: p.descuento.toFixed(2),
       subtotalNeto: p.subtotalNeto.toFixed(2),
-      promocionId: p.promocionId
+      promocionId: p.promocionId,
+      recetaSnapshot: p.recetaSnapshot || null
     }));
 
     return {
@@ -745,6 +1076,11 @@ export class VentasService {
             id: ord.promocionId,
             nombre: ord.promocionNombre,
             tipo: ord.promocionTipo,
+            porcentaje: ord.promocionPorcentaje ? ord.promocionPorcentaje.toFixed(2) : null,
+            n: ord.promocionN || null,
+            m: ord.promocionM || null,
+            vigenciaInicio: ord.promocionVigenciaInicio ? ord.promocionVigenciaInicio.toISOString() : null,
+            vigenciaFin: ord.promocionVigenciaFin ? ord.promocionVigenciaFin.toISOString() : null,
             ahorro: ord.promocionAhorro ? ord.promocionAhorro.toFixed(2) : null
           }
         : null,
