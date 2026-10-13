@@ -27,3 +27,9 @@ Crear platillo devolvió la entidad creada y cambiar precio de 100.00 a 120.00 d
 ## Límites
 
 Backend y frontend compilaron. No se accedió a Supabase ni se probó Chrome Android/Safari iPhone. Se preservaron todos los cambios de los ejecutores. Los hallazgos compartidos requieren acuerdo entre integrantes 2, 3 y 4; esta auditoría no concede aprobación humana.
+
+## Base para el segundo ciclo
+
+La entrega de Ventas examinada quedó registrada íntegra en el commit `bc318f00983b1df2d9b435c82e47a68d253ec5da`. El integrante 2 atiende A2-2-01 a A2-2-03. Coordinar A2-2-01 con A2-3-03 y A2-4-02, y A2-2-02 con A2-4-04. Acordar en los contratos públicos los bloqueos y la identidad de receta antes de cambiar sus consumidores.
+
+Entregar resultados por ID con archivos, comandos, pruebas PostgreSQL y evidencias de pantalla realmente ejecutadas. Los revisores humanos 1 y 4 conservan su decisión. La publicación prepara el ciclo de correcciones; los fallos técnicos registrados siguen abiertos.

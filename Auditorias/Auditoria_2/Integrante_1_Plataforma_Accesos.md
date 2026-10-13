@@ -27,3 +27,15 @@ El aviso de [Piscina](https://github.com/advisories/GHSA-67c8-pqhq-4rmx) afecta 
 Comandos ejecutados: `npm run build:backend`, `npm run build:frontend`, `node app/backend/dist/scripts/verificar-accesos-w1.js`, `npm audit --json`, `npm audit --omit=dev --json`, y dos ejecuciones del migrador compilado contra una base PostgreSQL vacía y aislada. También se probaron rutas HTTP locales y la utilidad de desactivación sobre datos desechables.
 
 La segunda auditoría completa ejecutó 16 scripts existentes con 453 comprobaciones exitosas, además de escenarios PostgreSQL y HTTP independientes. No se probaron Supabase, restauración ni navegadores móviles reales. Esta revisión no modifica código, planes, casillas ni aprobaciones de las tareas W.
+
+## Complemento de arranque — A2-1-04
+
+Gravedad: media. Tarea: W1-05. En el diagnóstico local del 13 de octubre, Angular y Express respondieron 200, pero PostgreSQL figuró desconectado y no existía `.env` en la raíz ni en `app/backend`. La ausencia de credenciales locales exige configuración por el responsable; no deben añadirse al repositorio.
+
+`iniciar-asmibuy.bat` todavía anuncia cuentas de demostración retiradas y una IP fija. `app/backend/.env.example` promete almacenamiento seguro en memoria cuando falta la conexión y utiliza `CORS_ORIGIN`, mientras el código consulta `ALLOWED_ORIGINS`. Corregir esos mensajes e instrucciones, documentar configuración privada, migraciones y creación de cuentas, y comprobar el arranque desde una copia limpia con PostgreSQL. Este pendiente es adicional a A2-1-01 a A2-1-03.
+
+## Base para el segundo ciclo
+
+La entrega de Ventas examinada quedó registrada íntegra en el commit `bc318f00983b1df2d9b435c82e47a68d253ec5da`, para que los cuatro integrantes puedan reproducir la misma base. El integrante 1 atiende A2-1-01 a A2-1-04 y coordina configuración, app/ y compartido/. Los acuerdos de bloqueos y receta de integrantes 2, 3 y 4 deben reflejarse en los contratos públicos antes de integrar cambios.
+
+Entregar resultados por ID con archivos, comandos, entornos reales y pendientes. Mantener revisión humana y criterios integrados pendientes mientras falte su evidencia. La publicación prepara el ciclo de correcciones; los fallos técnicos registrados siguen abiertos.

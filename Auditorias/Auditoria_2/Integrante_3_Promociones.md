@@ -22,3 +22,9 @@ Se aplicaron las seis migraciones en una base local aislada. Las pruebas adicion
 ## Límites
 
 La hora y los bloqueos se comprobaron sobre PostgreSQL 18.4 real y aislado. No se probó Supabase ni navegador móvil físico. Las correcciones confirmadas no cierran la integración mientras sigan los fallos temporales y de bloqueo. No se modificó la entrega del integrante.
+
+## Base para el segundo ciclo
+
+La entrega de Ventas examinada quedó registrada íntegra en el commit `bc318f00983b1df2d9b435c82e47a68d253ec5da`. El integrante 3 atiende A2-3-01 a A2-3-04. Coordinar A2-3-03 con A2-2-01 y A2-4-02, y publicar el contrato de vigencia y revalidación antes de que Ventas consuma sus cambios.
+
+Entregar resultados por ID con archivos, comandos, pruebas PostgreSQL de expiración y concurrencia, y navegadores realmente usados. Los revisores humanos 2 y 4 conservan su decisión. La publicación prepara el ciclo de correcciones; los fallos técnicos registrados siguen abiertos.

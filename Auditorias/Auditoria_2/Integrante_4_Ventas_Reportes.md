@@ -27,3 +27,22 @@ En un proceso de prueba nuevo, con el pool normal de máximo 10 y stock suficien
 ## Límites
 
 Se ejecutaron pruebas PostgreSQL 18.4 y HTTP locales contra datos desechables. La recuperación en el navegador se auditó por código, sin atribuirle una prueba visual ejecutada. No se probaron Supabase, Chrome Android, Safari iPhone ni restauración. La revisión global ejecutó 453 comprobaciones existentes exitosas; los fallos aquí descritos surgieron de escenarios adicionales. No se modificó código, planes ni casillas del ejecutor.
+
+## Complemento: informe del ejecutor del primer ciclo
+
+El usuario aportó el informe de ejecución del integrante 4 fechado el 12 de octubre de 2026. Se conserva como evidencia declarada de autoría y alcance del primer ciclo. El informe identifica los mismos archivos de Ventas y confirma que sus 137 comprobaciones se ejecutaron en memoria aislada. No aporta una ejecución adicional sobre PostgreSQL ni una decisión humana de aprobación.
+
+La comparación con el código y la segunda auditoría conserva estas discrepancias:
+
+- El informe afirma liberación de cliente mediante `finally`; la rama PostgreSQL solo libera en `catch`, origen de A2-4-01.
+- Afirma detectar cambios de receta; la reproducción PostgreSQL siguió aceptando la receta modificada, A2-4-04.
+- Describe recuperación en `localStorage`; el componente usa `sessionStorage` y elimina el pendiente ante errores, A2-4-03 y A2-4-07.
+- Describe cierre de periodo completo; la normalización implementada usa UTC y aún requiere la zona del negocio, A2-4-06.
+
+Las compilaciones y las comprobaciones de memoria ya están incluidas en el resultado anterior. El complemento no aumenta el número de pruebas verificadas ni cierra los hallazgos de la segunda auditoría.
+
+## Base para el segundo ciclo
+
+La entrega del primer ciclo examinada quedó registrada íntegra en el commit `bc318f00983b1df2d9b435c82e47a68d253ec5da`. El integrante 4 atiende A2-4-01 a A2-4-07. Coordinar A2-4-02 con A2-2-01 y A2-3-03, y A2-4-04 con A2-2-02. Los cambios de contratos y de archivos compartidos requieren coordinación con sus propietarios.
+
+Entregar resultados por ID con archivos, comandos, PostgreSQL aislado para concurrencia/rollback y pruebas reales de recuperación en navegador. Los revisores humanos 3, 2 y 1 conservan sus decisiones. La publicación prepara el ciclo de correcciones; los fallos técnicos registrados siguen abiertos.
