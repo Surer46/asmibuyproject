@@ -34,3 +34,4 @@ Hay 24 tareas, seis por integrante. Codex coordina el seguimiento documental y l
 La tarea que da una base ejecutable al equipo es W1-02, precedida por W1-01. Cada tarea tiene lista, resultado, dependencias y auditoría. Revisión: 1 por 4, 2 por 1, 3 por 2 y 4 por 3, con revisiones adicionales de integración. No marcar terminada sin evidencia y aprobación independiente.
 
 Los archivos describen trabajo pendiente. No hay aplicación implementada ni pruebas de funcionamiento ejecutadas por crear esta documentación.
+.
