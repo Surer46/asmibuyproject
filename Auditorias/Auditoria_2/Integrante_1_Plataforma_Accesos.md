@@ -39,3 +39,17 @@ Gravedad: media. Tarea: W1-05. En el diagnóstico local del 13 de octubre, Angul
 La entrega de Ventas examinada quedó registrada íntegra en el commit `bc318f00983b1df2d9b435c82e47a68d253ec5da`, para que los cuatro integrantes puedan reproducir la misma base. El integrante 1 atiende A2-1-01 a A2-1-04 y coordina configuración, app/ y compartido/. Los acuerdos de bloqueos y receta de integrantes 2, 3 y 4 deben reflejarse en los contratos públicos antes de integrar cambios.
 
 Entregar resultados por ID con archivos, comandos, entornos reales y pendientes. Mantener revisión humana y criterios integrados pendientes mientras falte su evidencia. La publicación prepara el ciclo de correcciones; los fallos técnicos registrados siguen abiertos.
+
+---
+
+## Resolución de pendientes de Auditoría 2 por el Integrante 1
+
+Fecha de resolución: 14 de octubre de 2026. Estado: **correcciones técnicas implementadas y verificadas con 51 pruebas automatizadas**.
+
+| ID | Gravedad | Estado | Solución implementada y evidencia técnica |
+| --- | --- | --- | --- |
+| **A2-1-01** | Seguridad (devDep) | **Resuelto** | Se actualizaron `@angular/build` y `@angular/cli` a `21.2.26`. Se configuraron `overrides` en `package.json` para `piscina` (^5.3.2), `@modelcontextprotocol/sdk` (^1.31.0), `http-cache-semantics` (4.3.0) y `source-map-js` (1.2.2). Se ejecutó `npm audit fix`. Resultado actual: **`found 0 vulnerabilities`** tanto en `npm audit` como en `npm audit --omit=dev`. Compilaciones limpias en frontend y backend. |
+| **A2-1-02** | Alta | **Resuelto** | Se implementó `AuthService.desactivarUsuario(id)` de forma atómica: en PostgreSQL bloquea con `SELECT ... FOR UPDATE` a los administradores activos y verifica que `count > 1` antes de proceder; si es el último administrador activo, aborta la transacción con error y no modifica el registro. Además revoca atómicamente todas las sesiones del usuario desactivado. Se incorporó `AuthService.restablecerPassword(id, nuevaClave)` con hash bcrypt y revocación de sesiones previas. `mantenimiento-cuentas.ts` soporta `desactivar`, `activar` y `password <id> <nueva_contraseña>`. Probado con éxito en la batería automatizada. |
+| **A2-1-03** | Evidencia | **En seguimiento** | Se mantienen pendientes los criterios físicos en dispositivos móviles (Chrome Android, Safari iPhone) y la restauración de respaldo de Supabase en base aislada, supeditados a la integración final del equipo. |
+| **A2-1-04** | Media | **Resuelto** | Se actualizó `iniciar-asmibuy.bat` eliminando la IP fija (sustituida por instrucción dinámica con `ipconfig`) y retirando las credenciales de prueba obsoletas. Se corrigió `app/backend/.env.example` y se creó `.env.example` en la raíz eliminando promesas falsas de memoria, documentando la obligatoriedad de PostgreSQL, y configurando `ALLOWED_ORIGINS` junto con soporte para `CORS_ORIGIN`. `auth.middleware.ts` ahora admite ambos nombres como alias. |
+

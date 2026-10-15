@@ -232,4 +232,146 @@ export class AuthService {
 
     throw new Error('DATABASE_URL requerida para crear cuentas nominales.');
   }
+
+  /**
+   * Desactiva un usuario de manera atómica.
+   * Prohíbe terminantemente desactivar al último administrador activo del sistema,
+   * bloqueando concurrentemente mediante SELECT ... FOR UPDATE.
+   * Además, revoca de inmediato todas las sesiones activas del usuario desactivado.
+   */
+  static async desactivarUsuario(id: number): Promise<Usuario> {
+    if (process.env.DATABASE_URL) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // 1. Obtener y bloquear usuario objetivo
+        const resTarget = await client.query('SELECT * FROM usuarios WHERE id = $1 FOR UPDATE', [id]);
+        if (resTarget.rows.length === 0) {
+          throw new Error(`Usuario con ID ${id} no encontrado.`);
+        }
+        const usuario = resTarget.rows[0];
+
+        if (!usuario.activo) {
+          await client.query('COMMIT');
+          return usuario;
+        }
+
+        // 2. Si es ADMINISTRADOR, bloquear y contar administradores activos concurrentes
+        if (usuario.perfil === 'ADMINISTRADOR') {
+          const resAdmins = await client.query(
+            "SELECT id FROM usuarios WHERE perfil = 'ADMINISTRADOR' AND activo = TRUE FOR UPDATE"
+          );
+          if (resAdmins.rows.length <= 1) {
+            throw new Error('Operación rechazada: No se puede desactivar al último administrador activo del sistema.');
+          }
+        }
+
+        // 3. Desactivar usuario y revocar sesiones de forma atómica
+        const resUpdate = await client.query(
+          'UPDATE usuarios SET activo = FALSE WHERE id = $1 RETURNING *',
+          [id]
+        );
+        await client.query('UPDATE sesiones SET revocada = TRUE WHERE usuario_id = $1', [id]);
+        await client.query('COMMIT');
+        return resUpdate.rows[0];
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      const u = usuariosTestMemoria.find(u => u.id === id);
+      if (!u) throw new Error(`Usuario con ID ${id} no encontrado.`);
+      if (!u.activo) return u;
+
+      if (u.perfil === 'ADMINISTRADOR') {
+        const adminsActivos = usuariosTestMemoria.filter(x => x.perfil === 'ADMINISTRADOR' && x.activo);
+        if (adminsActivos.length <= 1) {
+          throw new Error('Operación rechazada: No se puede desactivar al último administrador activo del sistema.');
+        }
+      }
+
+      u.activo = false;
+      for (const s of sesionesTestMemoria.values()) {
+        if (s.usuario_id === id) s.revocada = true;
+      }
+      return u;
+    }
+
+    throw new Error('DATABASE_URL requerida para desactivar usuarios.');
+  }
+
+  /**
+   * Activa una cuenta previamente desactivada
+   */
+  static async activarUsuario(id: number): Promise<Usuario> {
+    if (process.env.DATABASE_URL) {
+      const res = await pool.query(
+        'UPDATE usuarios SET activo = TRUE WHERE id = $1 RETURNING *',
+        [id]
+      );
+      if (res.rows.length === 0) {
+        throw new Error(`Usuario con ID ${id} no encontrado.`);
+      }
+      return res.rows[0];
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      const u = usuariosTestMemoria.find(u => u.id === id);
+      if (!u) throw new Error(`Usuario con ID ${id} no encontrado.`);
+      u.activo = true;
+      return u;
+    }
+
+    throw new Error('DATABASE_URL requerida para activar usuarios.');
+  }
+
+  /**
+   * Restablece la contraseña de un usuario mediante hash bcrypt con salting
+   * y revoca todas sus sesiones activas para exigir re-autenticación.
+   */
+  static async restablecerPassword(id: number, nuevoPasswordPlano: string): Promise<Usuario> {
+    if (!nuevoPasswordPlano || nuevoPasswordPlano.trim().length < 6) {
+      throw new Error('La contraseña debe tener al menos 6 caracteres.');
+    }
+    const password_hash = this.hashPassword(nuevoPasswordPlano.trim());
+
+    if (process.env.DATABASE_URL) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const res = await client.query(
+          'UPDATE usuarios SET password_hash = $1 WHERE id = $2 RETURNING *',
+          [password_hash, id]
+        );
+        if (res.rows.length === 0) {
+          throw new Error(`Usuario con ID ${id} no encontrado.`);
+        }
+        await client.query('UPDATE sesiones SET revocada = TRUE WHERE usuario_id = $1', [id]);
+        await client.query('COMMIT');
+        return res.rows[0];
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      const u = usuariosTestMemoria.find(u => u.id === id);
+      if (!u) throw new Error(`Usuario con ID ${id} no encontrado.`);
+      u.password_hash = password_hash;
+      for (const s of sesionesTestMemoria.values()) {
+        if (s.usuario_id === id) s.revocada = true;
+      }
+      return u;
+    }
+
+    throw new Error('DATABASE_URL requerida para restablecer contraseñas.');
+  }
 }

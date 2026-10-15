@@ -170,9 +170,115 @@ function probarFuentesLocalesYTokens() {
   assert(stylesCss.includes('#6B7280'), 'styles.css incluye borde de control #6B7280');
 }
 
+async function probarProteccionUltimoAdministrador() {
+  console.log('\n--- 7. Prueba de protección atómica al último administrador activo (A2-1-02) ---');
+  process.env.NODE_ENV = 'test';
+  delete process.env.DATABASE_URL;
+  AuthService.resetearMemoriaTest();
+
+  // Caso 1: Solo un administrador en el sistema
+  AuthService.agregarUsuarioTest({
+    id: 1,
+    nombre: 'Admin Unico',
+    correo: 'admin1@asmibuy.com',
+    password_hash: AuthService.hashPassword('Admin1234!'),
+    perfil: 'ADMINISTRADOR',
+    activo: true,
+    creado_en: new Date().toISOString()
+  });
+
+  AuthService.agregarUsuarioTest({
+    id: 2,
+    nombre: 'Cajero Empleado',
+    correo: 'cajero@asmibuy.com',
+    password_hash: AuthService.hashPassword('Cajero1234!'),
+    perfil: 'TRABAJADOR',
+    activo: true,
+    creado_en: new Date().toISOString()
+  });
+
+  try {
+    await AuthService.desactivarUsuario(1);
+    assert(false, 'Debería haber impedido desactivar al único administrador');
+  } catch (err: any) {
+    assert(
+      err.message.includes('No se puede desactivar al último administrador activo'),
+      'Rechaza de forma atómica desactivar al único administrador activo'
+    );
+  }
+
+  // Comprobar que sigue activo
+  const adminPostIntento = await AuthService.buscarPorId(1);
+  assert(adminPostIntento?.activo === true, 'El administrador se mantiene activo');
+
+  // Desactivar trabajador debe permitirse
+  const trabajadorDesactivado = await AuthService.desactivarUsuario(2);
+  assert(trabajadorDesactivado.activo === false, 'Desactivar trabajador no administrador es permitido');
+
+  // Caso 2: Se agrega un segundo administrador activo
+  AuthService.agregarUsuarioTest({
+    id: 3,
+    nombre: 'Admin Auxiliar',
+    correo: 'admin2@asmibuy.com',
+    password_hash: AuthService.hashPassword('Admin2Pass!'),
+    perfil: 'ADMINISTRADOR',
+    activo: true,
+    creado_en: new Date().toISOString()
+  });
+
+  // Ahora hay 2 administradores activos: desactivar el admin 1 sí debe permitirse
+  const admin1Desactivado = await AuthService.desactivarUsuario(1);
+  assert(admin1Desactivado.activo === false, 'Con 2 administradores activos, desactivar el primero es permitido');
+
+  // Ahora solo queda admin 3: intentar desactivarlo debe ser rechazado
+  try {
+    await AuthService.desactivarUsuario(3);
+    assert(false, 'Debería haber impedido desactivar al último administrador restante');
+  } catch (err: any) {
+    assert(
+      err.message.includes('No se puede desactivar al último administrador activo'),
+      'Impide desactivar al último administrador restante (admin 3)'
+    );
+  }
+
+  const admin3Final = await AuthService.buscarPorId(3);
+  assert(admin3Final?.activo === true, 'El sistema garantiza al menos 1 administrador activo');
+}
+
+async function probarRestablecimientoPasswordYRevocacion() {
+  console.log('\n--- 8. Prueba de restablecimiento de contraseña y revocación de sesiones (A2-1-02) ---');
+  process.env.NODE_ENV = 'test';
+  delete process.env.DATABASE_URL;
+  AuthService.resetearMemoriaTest();
+
+  AuthService.agregarUsuarioTest({
+    id: 5,
+    nombre: 'Usuario Clave',
+    correo: 'clave@asmibuy.com',
+    password_hash: AuthService.hashPassword('ClaveVieja123!'),
+    perfil: 'TRABAJADOR',
+    activo: true,
+    creado_en: new Date().toISOString()
+  });
+
+  // Iniciar sesión activa
+  const { token } = await AuthService.crearSesion(5);
+  const valPrev = await AuthService.validarSesion(token);
+  assert(valPrev.valida === true, 'Sesión inicial válida');
+
+  // Restablecer contraseña
+  const uActualizado = await AuthService.restablecerPassword(5, 'NuevaClaveSegura2026!');
+  assert(AuthService.verificarPassword('NuevaClaveSegura2026!', uActualizado.password_hash), 'Nueva contraseña verificada por hash');
+  assert(!AuthService.verificarPassword('ClaveVieja123!', uActualizado.password_hash), 'Contraseña antigua deja de ser válida');
+
+  // La sesión activa previa debe haberse revocado automáticamente
+  const valPost = await AuthService.validarSesion(token);
+  assert(valPost.valida === false, 'La sesión previa queda revocada tras el cambio de contraseña');
+}
+
 async function main() {
   console.log('========================================================');
-  console.log('🧪 BATERÍA DE VERIFICACIÓN DE AUDITORÍA 1 — PLATAFORMA Y ACCESOS');
+  console.log('🧪 BATERÍA DE VERIFICACIÓN DE AUDITORÍA 1 Y 2 — PLATAFORMA Y ACCESOS');
   console.log('========================================================');
 
   await probarFalloCaidaBD();
@@ -181,6 +287,8 @@ async function main() {
   probarValidacionOrigen();
   probarEmpaquetadoMigraciones();
   probarFuentesLocalesYTokens();
+  await probarProteccionUltimoAdministrador();
+  await probarRestablecimientoPasswordYRevocacion();
 
   console.log('\n========================================================');
   console.log(`📊 RESULTADO FINAL: ${exitos} PRUEBAS EXITOSAS, ${fallos} FALLOS`);

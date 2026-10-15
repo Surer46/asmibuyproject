@@ -37,21 +37,35 @@ async function main() {
     console.log(`   - Correo: ${u.correo}`);
     console.log(`   - Perfil Fijo: ${u.perfil}`);
     console.log(`   - Activo: ${u.activo}`);
-  } else if (accion === 'desactivar' || accion === 'activar') {
+  } else if (accion === 'desactivar') {
     const [, idStr] = args;
     const id = parseInt(idStr, 10);
     if (isNaN(id)) {
-      console.log(`Uso: node mantenimiento-cuentas.js ${accion} <id_usuario>`);
+      console.log('Uso: node mantenimiento-cuentas.js desactivar <id_usuario>');
       process.exit(1);
     }
-    const nuevoEstado = accion === 'activar';
-    const res = await pool.query('UPDATE usuarios SET activo = $1 WHERE id = $2 RETURNING id, nombre, correo, perfil, activo', [nuevoEstado, id]);
-    if (res.rows.length === 0) {
-      console.log(`❌ No se encontró usuario con ID ${id}`);
-    } else {
-      const u = res.rows[0];
-      console.log(`✅ Cuenta actualizada: ID ${u.id} (${u.nombre} - ${u.correo}) -> Activo: ${u.activo}`);
+    const u = await AuthService.desactivarUsuario(id);
+    console.log(`✅ Cuenta desactivada con éxito: ID ${u.id} (${u.nombre} - ${u.correo}) -> Activo: ${u.activo}`);
+    console.log('   (Todas las sesiones activas de este usuario han sido revocadas en el servidor).');
+  } else if (accion === 'activar') {
+    const [, idStr] = args;
+    const id = parseInt(idStr, 10);
+    if (isNaN(id)) {
+      console.log('Uso: node mantenimiento-cuentas.js activar <id_usuario>');
+      process.exit(1);
     }
+    const u = await AuthService.activarUsuario(id);
+    console.log(`✅ Cuenta activada con éxito: ID ${u.id} (${u.nombre} - ${u.correo}) -> Activo: ${u.activo}`);
+  } else if (accion === 'password' || accion === 'restablecer') {
+    const [, idStr, nuevoPassword] = args;
+    const id = parseInt(idStr, 10);
+    if (isNaN(id) || !nuevoPassword) {
+      console.log('Uso: node mantenimiento-cuentas.js password <id_usuario> <nueva_contraseña>');
+      process.exit(1);
+    }
+    const u = await AuthService.restablecerPassword(id, nuevoPassword);
+    console.log(`✅ Contraseña restablecida con éxito para ID ${u.id} (${u.nombre} - ${u.correo}).`);
+    console.log('   (Todas sus sesiones activas previas han sido revocadas para exigir re-autenticación).');
   } else {
     if (!process.env.DATABASE_URL) {
       console.log('⚠️ DATABASE_URL no configurada. Configure la variable para listar usuarios de la BD.');

@@ -22,9 +22,11 @@ export function esOrigenPermitido(origin?: string): boolean {
       return true;
     }
 
-    const origenesConfigurados = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-      : [];
+    const origenesTexto = process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || '';
+    const origenesConfigurados = origenesTexto
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
     if (origenesConfigurados.includes(origin) || origenesConfigurados.includes(parsed.origin)) {
       return true;
     }

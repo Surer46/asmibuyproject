@@ -18,13 +18,16 @@ echo 💻 Acceso desde esta Computadora:
 echo    - Aplicacion Web : http://localhost:4200
 echo    - API REST Salud : http://localhost:3001/api/v1/health
 echo.
-echo 📱 ACCESO DIRECTO DESDE TU CELULAR (Misma red Wi-Fi):
-echo    - En el navegador de tu celular abre:
-echo      👉 http://10.3.1.17:4200
+echo 📱 ACCESO DESDE DISPOSITIVOS MOVILES (Misma red Wi-Fi):
+echo    - Para acceder desde el navegador de tu celular:
+echo      Ejecuta 'ipconfig' para ver tu IPv4 local y abre:
+echo      👉 http://<TU_IP_LOCAL>:4200
 echo.
-echo 🔑 Credenciales para iniciar sesion:
-echo    - Administrador: admin@asmibuy.com  / Admin1234!
-echo    - Trabajador   : cajero@asmibuy.com / Cajero1234!
+echo 🔐 Cuentas nominales de acceso:
+echo    - Las cuentas se gestionan directamente en tu base de datos PostgreSQL.
+echo    - Para crear o gestionar cuentas nominales desde terminal ejecuta:
+echo      node app\backend\dist\scripts\mantenimiento-cuentas.js crear "Nombre" correo password ADMINISTRADOR^|TRABAJADOR
+echo      node app\backend\dist\scripts\mantenimiento-cuentas.js listar
 echo ========================================================================
 echo Presiona cualquier tecla para cerrar esta ventana de inicio...
 pause > nul
