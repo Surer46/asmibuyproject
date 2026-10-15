@@ -97,6 +97,8 @@ export interface PromocionAplicadaSnapshotDTO {
   n: number | null;
   m: number | null;
   duracion: DuracionPromocion;
+  fechaInicio: string | null;
+  fechaFin: string | null;
   ahorroTotal: string;
 }
 
@@ -710,7 +712,7 @@ export class PromocionesService {
    */
   static async cotizarOrden(
     items: ItemCotizacionInput[],
-    fechaEvaluacion: Date = new Date(),
+    fechaEvaluacion?: Date,
     clienteDb?: PoolClient | Pool,
     bloquearParaConfirmacion: boolean = false
   ): Promise<ResultadoCotizacionDTO> {
@@ -734,6 +736,7 @@ export class PromocionesService {
     const idsPlatillos = Array.from(itemsConsolidadosMap.keys()).sort((a, b) => a - b);
     const platillosInfo = new Map<number, { id: number; nombre: string; precio: Decimal }>();
     let todasPromos: PromocionDTO[] = [];
+    let fechaEfectiva = fechaEvaluacion || new Date();
 
     if (process.env.DATABASE_URL) {
       const db = clienteDb || pool;
@@ -771,10 +774,22 @@ export class PromocionesService {
         sqlPromos += ' FOR SHARE OF pr';
       }
       const resPromos = await db.query(sqlPromos, [idsPlatillos]);
+
+      // A2-3-02: Obtener y revalidar la hora vigente después de adquirir los bloqueos relevantes
+      if (bloquearParaConfirmacion) {
+        const timeRes = await db.query('SELECT clock_timestamp() AS ahora');
+        fechaEfectiva = new Date(timeRes.rows[0].ahora);
+      } else if (!fechaEvaluacion) {
+        fechaEfectiva = new Date();
+      }
+
       todasPromos = resPromos.rows.map((r: any) =>
-        this.mapearFilaADTO(r, r.nombre_platillo, new Decimal(r.precio_platillo).toFixed(2), fechaEvaluacion)
+        this.mapearFilaADTO(r, r.nombre_platillo, new Decimal(r.precio_platillo).toFixed(2), fechaEfectiva)
       );
     } else {
+      if (bloquearParaConfirmacion || !fechaEvaluacion) {
+        fechaEfectiva = new Date();
+      }
       for (const platilloId of idsPlatillos) {
         const p = await this.obtenerPlatilloValidado(platilloId);
         platillosInfo.set(platilloId, p);
@@ -786,7 +801,7 @@ export class PromocionesService {
     // Filtrar únicamente las que apliquen a los platillos de la orden y estén vigentes
     const promosElegibles = todasPromos.filter((p) => {
       if (!itemsConsolidadosMap.has(p.platilloId)) return false;
-      return this.estaVigente(p, fechaEvaluacion);
+      return this.estaVigente(p, fechaEfectiva);
     });
 
     // Evaluar ahorro potencial de cada promoción elegible
@@ -877,6 +892,8 @@ export class PromocionesService {
           n: mejorPromo.promo.n,
           m: mejorPromo.promo.m,
           duracion: mejorPromo.promo.duracion,
+          fechaInicio: mejorPromo.promo.fechaInicio,
+          fechaFin: mejorPromo.promo.fechaFin,
           ahorroTotal: mejorPromo.ahorro.toFixed(2)
         }
       : null;
@@ -887,7 +904,7 @@ export class PromocionesService {
       total: totalFinal.toFixed(2),
       promocionAplicada: snapshotPromo,
       partidas,
-      fechaEvaluacion: fechaEvaluacion.toISOString()
+      fechaEvaluacion: fechaEfectiva.toISOString()
     };
   }
 
@@ -908,24 +925,26 @@ export class PromocionesService {
       cantidad: p.cantidad
     }));
 
+    // A2-3-02: No congelar la hora antes de adquirir los bloqueos.
+    // cotizarOrden obtendrá la hora de evaluación efectiva post-bloqueos en modo confirmación (CW-10/14)
     const cotizacionActual = await this.cotizarOrden(
       items,
-      new Date(),
+      undefined,
       clienteDb,
       bloquearParaConfirmacion
     );
 
-    // 1. Huella íntegra de la regla aplicada (Finding 2 / CW-14)
-    // Compara versión o huella de la regla: ID, nombre, tipo, porcentaje, n, m, duración y ahorro
+    // 1. Huella íntegra de la regla aplicada (Finding 2 / CW-14 / A2-3-01)
+    // Compara versión o huella de la regla: ID, nombre, tipo, porcentaje, n, m, duración, vigencias (fechaInicio, fechaFin) y ahorro
     const prevPromo = cotizacionPrevia.promocionAplicada;
     const actPromo = cotizacionActual.promocionAplicada;
 
     const huellaPromoPrev = prevPromo
-      ? `${prevPromo.id}|${prevPromo.nombre}|${prevPromo.tipo}|${prevPromo.porcentaje ?? ''}|${prevPromo.n ?? ''}|${prevPromo.m ?? ''}|${prevPromo.duracion}|${prevPromo.ahorroTotal}`
+      ? `${prevPromo.id}|${prevPromo.nombre}|${prevPromo.tipo}|${prevPromo.porcentaje ?? ''}|${prevPromo.n ?? ''}|${prevPromo.m ?? ''}|${prevPromo.duracion}|${prevPromo.fechaInicio ?? ''}|${prevPromo.fechaFin ?? ''}|${prevPromo.ahorroTotal}`
       : 'SIN_PROMO';
 
     const huellaPromoAct = actPromo
-      ? `${actPromo.id}|${actPromo.nombre}|${actPromo.tipo}|${actPromo.porcentaje ?? ''}|${actPromo.n ?? ''}|${actPromo.m ?? ''}|${actPromo.duracion}|${actPromo.ahorroTotal}`
+      ? `${actPromo.id}|${actPromo.nombre}|${actPromo.tipo}|${actPromo.porcentaje ?? ''}|${actPromo.n ?? ''}|${actPromo.m ?? ''}|${actPromo.duracion}|${actPromo.fechaInicio ?? ''}|${actPromo.fechaFin ?? ''}|${actPromo.ahorroTotal}`
       : 'SIN_PROMO';
 
     const cambioReglaPromo = huellaPromoPrev !== huellaPromoAct;

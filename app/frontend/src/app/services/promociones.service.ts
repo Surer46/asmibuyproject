@@ -79,6 +79,8 @@ export interface PromocionAplicadaSnapshotDTO {
   n: number | null;
   m: number | null;
   duracion: DuracionPromocion;
+  fechaInicio: string | null;
+  fechaFin: string | null;
   ahorroTotal: string;
 }
 

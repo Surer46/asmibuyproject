@@ -1,6 +1,4 @@
 # Contrato de Descuentos y Promociones (Integrante 3)
-
-> Propuesta de integración A2 (15-10-2026), pendiente de revisión de propietarios 2/3/1: las partidas de cotización incluyen `recetaHuella`, derivada de la API pública de Catálogo. La revalidación compara esa huella además de precios/promociones. Para confirmar, el bloqueo inicial de platillos es `FOR UPDATE` ascendente, no SHARE, compatible con consumo y edición de receta. Ver la adenda de [Ventas](04-ventas-reportes.md).
 **Versión:** 2.1  
 **Fecha:** 29 de septiembre de 2026  
 **Autor:** Integrante 3 (Descuentos y Promociones)  
@@ -8,6 +6,12 @@
 **Revisores Adicionales:** Integrante 4 (Ventas y Cotización) e Integrante 1 (Base Web y Acceso)
 
 Este documento establece la especificación formal del modelo de datos, tipos TypeScript (DTOs), reglas matemáticas de cálculo exacto, contratos de API REST y protocolos de integración entre el módulo de Promociones y los módulos de Ventas (Integrante 4) y Catálogo e Inventario (Integrante 2), en estricto cumplimiento con `spec.md` v2.1 y las reglas de `AGENTS.md`.
+
+## Adenda de integración — Auditoría 2 (15-10-2026, pendiente de revisión 2/4/1)
+
+- **Snapshot y huella de vigencia (A2-3-01):** `PromocionAplicadaSnapshotDTO` incorpora obligatoriamente `fechaInicio: string | null` y `fechaFin: string | null` (en formato ISO 8601 o null si la duración es `PERMANENTE`). La huella canónica calculada y comparada por `PromocionesService.validarConsistenciaCotizacion` incluye ambos campos. Cualquier alteración de fechas de inicio o fin de una promoción temporal (incluso si conserva el mismo ahorro o total) genera un cambio de huella y es rechazada con `COTIZACION_DESACTUALIZADA` (HTTP 409), exigiendo la aceptación de un nuevo resumen económico por parte del cliente antes de confirmar la venta.
+- **Evaluación post-bloqueos en revalidación (A2-3-02):** Al validar la consistencia transaccional de una cotización (`validarConsistenciaCotizacion` con `bloquearParaConfirmacion = true`), la hora de evaluación vigente no se congela de forma previa, sino que se consulta en tiempo real mediante `SELECT clock_timestamp() AS ahora` en PostgreSQL (o el reloj del sistema) inmediatamente **después de adquirir los bloqueos deterministas** sobre los platillos y promociones participantes. Si una promoción temporal atravesó su fin exclusivo durante la espera de bloqueos, el servicio detecta su expiración, desestima la promoción y rechaza la venta con HTTP 409, impidiendo la confirmación errónea de totales a cero ($0.00) por promociones ya vencidas.
+- **Protocolo determinista de bloqueos coordinado (A2-3-03 / A2-2-01 / A2-4-02):** Promociones adquiere `FOR UPDATE` sobre los platillos participantes en orden determinista por ID ascendente (`ORDER BY id ASC`), seguido de `FOR SHARE OF pr` sobre las promociones participantes (`ORDER BY pr.id ASC`). Este protocolo elimina la conversión incompatible `FOR SHARE` → `FOR UPDATE` entre Promociones e Inventario que generaba errores PostgreSQL `40P01 / deadlock detected` ante ventas simultáneas del mismo platillo. Catálogo bloquea con `FOR UPDATE` el platillo antes de mutar recetas, e Inventario lee platillos sin re-bloquear y bloquea insumos con `FOR UPDATE` ascendente.
 
 ---
 
@@ -122,6 +126,8 @@ export interface PromocionAplicadaSnapshotDTO {
   n: number | null;
   m: number | null;
   duracion: DuracionPromocion;
+  fechaInicio: string | null; // ISO 8601 o null si es PERMANENTE
+  fechaFin: string | null; // ISO 8601 o null si es PERMANENTE
   ahorroTotal: string; // ej. "200.00"
 }
 
