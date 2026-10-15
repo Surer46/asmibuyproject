@@ -86,7 +86,7 @@ async function main() {
     const contenido = leerServicio('inventario.service');
 
     const inicio = contenido.indexOf('descontarInventarioPorVenta');
-    const fragmento = contenido.slice(inicio, inicio + 4500);
+    const fragmento = contenido.slice(inicio, inicio + 6000);
 
     const forUpdateIngredientes = /FROM ingredientes.*FOR UPDATE/i.test(fragmento);
     if (!forUpdateIngredientes) {

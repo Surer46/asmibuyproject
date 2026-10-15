@@ -1,0 +1,18 @@
+{
+  "fecha": "2026-10-15T15:29:35.317Z",
+  "navegador": "Microsoft Edge 155.0.4283.45",
+  "plataforma": "win32",
+  "viewport": [
+    "1280x900",
+    "360x800 (emulación de tamaño en PC)"
+  ],
+  "pruebas": 15,
+  "resultado": "PASS",
+  "backend": "API Express real + PostgreSQL 18.4 aislado; pérdida de respuesta por route.abort después de route.fetch 200",
+  "pendientes": [
+    "Chrome Android real",
+    "Safari iPhone real",
+    "revisión humana 3/2/1",
+    "Supabase"
+  ]
+}

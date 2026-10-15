@@ -58,6 +58,7 @@ export interface ItemCotizacionInput {
 }
 
 export interface PartidaCotizacionDTO {
+  recetaHuella?: string;
   platilloId: number;
   nombrePlatillo: string;
   precioUnitario: string;

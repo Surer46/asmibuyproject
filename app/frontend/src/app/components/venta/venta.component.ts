@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -49,12 +50,12 @@ export interface ItemCarrito {
           </div>
         </div>
         <div class="banner-acciones">
-          <button (click)="verificarVentaPendiente()" class="btn-cupertino btn-sm btn-naranja" [disabled]="recuperando()">
+          <button (click)="verificarVentaPendiente()" class="btn-cupertino btn-sm btn-naranja" [disabled]="recuperando() || confirmando()">
             <span class="material-symbols-rounded" [class.icono-rotando]="recuperando()">refresh</span>
             <span>{{ recuperando() ? 'Verificando...' : 'Verificar Estado' }}</span>
           </button>
-          <button (click)="descartarVentaPendiente()" class="btn-cupertino btn-sm btn-secundario" [disabled]="recuperando()">
-            Descartar
+          <button (click)="reintentarVentaPendiente()" class="btn-cupertino btn-sm btn-secundario" [disabled]="recuperando() || confirmando() || !puedeReintentarPendiente()">
+            Reintentar misma operación
           </button>
         </div>
       </div>
@@ -76,6 +77,7 @@ export interface ItemCarrito {
       </div>
 
       <!-- Distribución Principal: Catálogo (Izquierda) y Carrito/Cobro (Derecha) -->
+      <fieldset [disabled]="confirmando() || !!ventaPendienteClave()" style="border:0; padding:0; margin:0; min-width:0">
       <div class="pos-layout">
         <!-- SECCIÓN 1: CATÁLOGO DE PLATILLOS -->
         <section class="catalogo-section">
@@ -284,6 +286,7 @@ export interface ItemCarrito {
           </div>
         </section>
       </div>
+      </fieldset>
 
       <!-- MODAL DE COMPROBANTE EN PANTALLA (CW-15 / W4-03 / W4-04) -->
       <div *ngIf="comprobanteVisible() && ordenComprobante()" class="modal-backdrop">
@@ -1072,6 +1075,10 @@ export class VentaComponent implements OnInit {
   private promocionesService = inject(PromocionesApiService);
   private ventasService = inject(VentasApiService);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
+  private solicitudPendiente: ConfirmarVentaInput | null = null;
+  private usuarioPendienteId: number | null = null;
+  private pendienteLegado = false;
 
   // Estados del Catálogo
   cargandoCatalogo = signal<boolean>(true);
@@ -1133,6 +1140,7 @@ export class VentaComponent implements OnInit {
   // =========================================================================
 
   agregarAlCarrito(platillo: PlatilloDTO): void {
+    if (this.operacionBloqueada()) return;
     this.limpiarMensajes();
     const actual = this.carrito();
     const existente = actual.find(i => i.platillo.id === platillo.id);
@@ -1148,6 +1156,7 @@ export class VentaComponent implements OnInit {
   }
 
   incrementarCantidad(item: ItemCarrito): void {
+    if (this.operacionBloqueada()) return;
     this.limpiarMensajes();
     item.cantidad += 1;
     this.carrito.set([...this.carrito()]);
@@ -1155,6 +1164,7 @@ export class VentaComponent implements OnInit {
   }
 
   decrementarCantidad(item: ItemCarrito): void {
+    if (this.operacionBloqueada()) return;
     this.limpiarMensajes();
     const actual = this.carrito();
     if (item.cantidad > 1) {
@@ -1167,6 +1177,7 @@ export class VentaComponent implements OnInit {
   }
 
   vaciarCarrito(): void {
+    if (this.operacionBloqueada()) return;
     this.limpiarMensajes();
     this.carrito.set([]);
     this.cotizacion.set(null);
@@ -1186,6 +1197,7 @@ export class VentaComponent implements OnInit {
   // =========================================================================
 
   recalcularCotizacion(): void {
+    if (this.operacionBloqueada()) return;
     const items = this.carrito();
     if (items.length === 0) {
       this.cotizacion.set(null);
@@ -1200,6 +1212,7 @@ export class VentaComponent implements OnInit {
 
     this.promocionesService.cotizarOrden(payload).subscribe({
       next: (resultado) => {
+        if (this.operacionBloqueada()) { this.cotizando.set(false); return; }
         this.cotizacion.set(resultado);
         this.cotizando.set(false);
 
@@ -1240,6 +1253,7 @@ export class VentaComponent implements OnInit {
   // =========================================================================
 
   confirmarVenta(): void {
+    if (this.operacionBloqueada() || this.cotizando()) return;
     this.limpiarMensajes();
     const cot = this.cotizacion();
     const items = this.carrito();
@@ -1251,11 +1265,6 @@ export class VentaComponent implements OnInit {
 
     if (this.confirmando()) return;
 
-    this.confirmando.set(true);
-
-    // Guardar clave pendiente en sessionStorage para recuperación ante corte de red (CW-19)
-    this.guardarVentaPendienteLocal(this.claveIdempotenciaActual);
-
     const input: ConfirmarVentaInput = {
       claveIdempotencia: this.claveIdempotenciaActual,
       metodoPago: this.esTotalCero() ? 'SIN_COBRO' : this.metodoPagoSeleccionado(),
@@ -1263,8 +1272,16 @@ export class VentaComponent implements OnInit {
       cotizacionAceptada: cot
     };
 
-    this.ventasService.confirmarVenta(input).subscribe({
+    if (!this.guardarVentaPendienteLocal(input)) return;
+    this.enviarConfirmacion(input);
+  }
+
+  private enviarConfirmacion(input: ConfirmarVentaInput): void {
+    const usuarioId = this.usuarioPendienteId;
+    this.confirmando.set(true);
+    this.ventasService.confirmarVenta(input).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (orden) => {
+        if (this.authService.usuarioActual()?.id !== usuarioId) return;
         this.confirmando.set(false);
         this.borrarVentaPendienteLocal();
 
@@ -1279,10 +1296,20 @@ export class VentaComponent implements OnInit {
         this.mensajeExito.set(`Venta ${orden.folio} confirmada con éxito.`);
       },
       error: (err) => {
+        if (this.authService.usuarioActual()?.id !== usuarioId) return;
         this.confirmando.set(false);
-        this.borrarVentaPendienteLocal();
 
         const codigo = err.error?.codigo;
+        // Solo rechazos de negocio que garantizan no haber confirmado son definitivos.
+        const definitivos = ['STOCK_INSUFICIENTE', 'COTIZACION_DESACTUALIZADA',
+          'DATOS_INVALIDOS', 'ORDEN_VACIA', 'METODO_PAGO_INVALIDO', 'DISCREPANCIA_CARRITO_COTIZACION'];
+        if (err.status >= 400 && err.status < 500 && definitivos.includes(codigo)) {
+          this.borrarVentaPendienteLocal();
+          this.claveIdempotenciaActual = this.generarUUID();
+        } else {
+          this.mensajeAlerta.set('Resultado incierto. Verifica o reintenta la misma operación antes de iniciar otra venta.');
+          return;
+        }
         if (codigo === 'STOCK_INSUFICIENTE') {
           // CW-06: Rollback atómico verificado
           this.mensajeError.set(
@@ -1293,14 +1320,11 @@ export class VentaComponent implements OnInit {
           this.mensajeAlerta.set(
             'Atención: Los precios o promociones cambiaron en el sistema. Se calculó una nueva cotización. Por favor verifica el nuevo total y presiona "Confirmar Venta" para aceptar.'
           );
-          if (err.error?.detalles?.cotizacionActualizada) {
-            this.cotizacion.set(err.error.detalles.cotizacionActualizada);
+          if (err.error?.detalles?.nuevaCotizacion) {
+            this.cotizacion.set(err.error.detalles.nuevaCotizacion);
           } else {
             this.recalcularCotizacion();
           }
-        } else if (codigo === 'IDEMPOTENCIA_CONFLICTO') {
-          this.mensajeError.set('Conflicto de idempotencia: Se intentó usar una clave existente con datos diferentes.');
-          this.claveIdempotenciaActual = this.generarUUID();
         } else {
           this.mensajeError.set(err.error?.mensaje || 'Error al procesar la confirmación de la venta.');
         }
@@ -1313,6 +1337,7 @@ export class VentaComponent implements OnInit {
   // =========================================================================
 
   iniciarNuevaVenta(): void {
+    if (this.operacionBloqueada()) return;
     this.comprobanteVisible.set(false);
     this.ordenComprobante.set(null);
     this.limpiarMensajes();
@@ -1341,59 +1366,120 @@ export class VentaComponent implements OnInit {
   // RECUPERACIÓN ANTE RESPUESTA PERDIDA / CORTE DE RED (CW-07 / CW-19)
   // =========================================================================
 
-  private guardarVentaPendienteLocal(clave: string): void {
+  private guardarVentaPendienteLocal(input: ConfirmarVentaInput): boolean {
+    const usuarioId = this.authService.usuarioActual()?.id;
+    if (!usuarioId) return false;
     try {
-      sessionStorage.setItem('asmibuy_transaccion_vuelo', clave);
+      // Copia inmutable de la solicitud aceptada, sin credenciales ni sesión.
+      const solicitud = JSON.parse(JSON.stringify(input)) as ConfirmarVentaInput;
+      localStorage.setItem(this.claveAlmacenamiento(usuarioId), JSON.stringify(solicitud));
+      this.usuarioPendienteId = usuarioId;
+      this.solicitudPendiente = solicitud;
+      this.ventaPendienteClave.set(input.claveIdempotencia);
+      return true;
     } catch {
-      // Ignorar restricciones en entornos aislados
+      this.mensajeError.set('No se puede conservar la operación pendiente. Habilita el almacenamiento antes de confirmar.');
+      return false;
     }
   }
 
   private borrarVentaPendienteLocal(): void {
     try {
-      sessionStorage.removeItem('asmibuy_transaccion_vuelo');
-      this.ventaPendienteClave.set(null);
-    } catch {}
+      if (this.usuarioPendienteId) localStorage.removeItem(this.claveAlmacenamiento(this.usuarioPendienteId));
+      if (this.pendienteLegado) sessionStorage.removeItem('asmibuy_transaccion_vuelo');
+    } catch {
+      this.mensajeAlerta.set('No se pudo limpiar el pendiente local. Vuelve a verificarlo antes de otra venta.');
+      return;
+    }
+    this.ventaPendienteClave.set(null);
+    this.solicitudPendiente = null;
+    this.pendienteLegado = false;
   }
 
   private revisarVentaPendienteLocal(): void {
     try {
-      const clave = sessionStorage.getItem('asmibuy_transaccion_vuelo');
-      if (clave) {
-        this.ventaPendienteClave.set(clave);
+      const usuarioId = this.authService.usuarioActual()?.id;
+      if (!usuarioId) return;
+      this.usuarioPendienteId = usuarioId;
+      const guardado = localStorage.getItem(this.claveAlmacenamiento(usuarioId));
+      if (guardado) {
+        this.ventaPendienteClave.set('PENDIENTE_DE_VERIFICACION');
+        const input = JSON.parse(guardado) as ConfirmarVentaInput;
+        if (!input.claveIdempotencia || !Array.isArray(input.items) || !input.cotizacionAceptada) {
+          throw new Error('Solicitud pendiente inválida');
+        }
+        this.solicitudPendiente = input;
+        this.claveIdempotenciaActual = input.claveIdempotencia;
+        this.ventaPendienteClave.set(input.claveIdempotencia);
+      } else {
+        // El primer ciclo guardaba solo una clave común: no inventar una solicitud ni descartarla.
+        const legado = sessionStorage.getItem('asmibuy_transaccion_vuelo');
+        if (legado) {
+          this.pendienteLegado = true;
+          this.claveIdempotenciaActual = legado;
+          this.ventaPendienteClave.set(legado);
+          this.mensajeAlerta.set('Pendiente de una versión anterior: verifica el resultado. Sin solicitud original no es seguro reenviar; si no se encuentra requiere revisión del responsable.');
+        }
       }
-    } catch {}
+    } catch {
+      this.ventaPendienteClave.set('PENDIENTE_DE_VERIFICACION');
+      this.mensajeError.set('No se puede leer la operación pendiente. No inicies otra venta hasta recuperar su identidad.');
+    }
   }
 
   verificarVentaPendiente(): void {
     const clave = this.ventaPendienteClave();
-    if (!clave) return;
+    if (!clave || this.confirmando() || this.recuperando() || (!this.solicitudPendiente && !this.pendienteLegado)) return;
+    const usuarioId = this.usuarioPendienteId;
 
     this.recuperando.set(true);
-    this.ventasService.recuperarVenta(clave).subscribe({
+    this.ventasService.recuperarVenta(clave).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
+        if (this.authService.usuarioActual()?.id !== usuarioId) return;
         this.recuperando.set(false);
-        this.borrarVentaPendienteLocal();
 
         if (res.encontrada && res.orden) {
+          if (res.orden.usuarioId !== usuarioId) {
+            this.mensajeError.set('La operación corresponde a otro usuario. Conserva la identidad para que su responsable la verifique.');
+            return;
+          }
+          this.borrarVentaPendienteLocal();
+          this.claveIdempotenciaActual = this.generarUUID();
           this.ordenComprobante.set(res.orden);
           this.comprobanteVisible.set(true);
+          this.carrito.set([]);
+          this.cotizacion.set(null);
           this.mensajeExito.set(`Venta previa ${res.orden.folio} recuperada con éxito.`);
-          this.vaciarCarrito();
         } else {
-          this.mensajeAlerta.set('La venta pendiente no fue registrada en el servidor. Puedes intentar confirmarla de nuevo.');
+          this.mensajeAlerta.set(this.pendienteLegado
+            ? 'Todavía no se encontró la venta antigua. Conserva la clave y solicita revisión; esta versión anterior no guardó la solicitud para reenviarla.'
+            : 'Todavía no se encontró la venta. La operación sigue pendiente; reintenta con la misma clave y solicitud.');
         }
       },
       error: (err) => {
+        if (this.authService.usuarioActual()?.id !== usuarioId) return;
         this.recuperando.set(false);
         this.mensajeError.set(err.error?.mensaje || 'No se pudo verificar el estado de la venta pendiente.');
       }
     });
   }
 
-  descartarVentaPendiente(): void {
-    this.borrarVentaPendienteLocal();
-    this.claveIdempotenciaActual = this.generarUUID();
+  reintentarVentaPendiente(): void {
+    if (this.confirmando() || this.recuperando() || !this.solicitudPendiente) return;
+    if (this.authService.usuarioActual()?.id !== this.usuarioPendienteId) return;
+    this.enviarConfirmacion(this.solicitudPendiente);
+  }
+
+  puedeReintentarPendiente(): boolean {
+    return !!this.solicitudPendiente;
+  }
+
+  private claveAlmacenamiento(usuarioId: number): string {
+    return `asmibuy_venta_pendiente:${usuarioId}`;
+  }
+
+  private operacionBloqueada(): boolean {
+    return this.confirmando() || !!this.ventaPendienteClave();
   }
 
   // =========================================================================

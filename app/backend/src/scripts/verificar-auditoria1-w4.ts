@@ -445,7 +445,11 @@ async function run() {
   console.log('🧪 BATERÍA DE VERIFICACIÓN DE AUDITORÍA 1 — INTEGRANTE 4 (VENTAS)');
   console.log('   Módulo: Punto de Venta e Historial (Integrante 4)');
   console.log('   Alcance: Resolución integral de hallazgos W4-01 a W4-06');
-  console.log('   Entorno detectado: ' + (process.env.DATABASE_URL ? 'PostgreSQL real (' + process.env.DATABASE_URL + ')' : 'Modo Memoria Aislado'));
+  // Esta batería prepara exclusivamente fixtures de memoria, nunca datos operativos.
+  if (process.env.DATABASE_URL) {
+    throw new Error('Esta batería solo admite memoria. Use verificar-auditoria2-w4 para PostgreSQL aislado con TEST_DATABASE_URL.');
+  }
+  console.log('   Entorno detectado: Modo Memoria Aislado (sin conexiones en logs)');
   console.log('========================================================================');
 
   await inicializarEntorno();
@@ -463,7 +467,7 @@ async function run() {
     console.error(`❌ SE ENCONTRARON ${fallos} FALLOS`);
     process.exit(1);
   } else {
-    console.log('🎉 TODOS LOS HALLAZGOS DE AUDITORÍA 1 FUERON VERIFICADOS Y RESUELTOS.');
+    console.log('Comprobaciones de memoria exitosas; no acreditan PostgreSQL, navegador ni cierre de hallazgos.');
     console.log('========================================================================\n');
   }
 }

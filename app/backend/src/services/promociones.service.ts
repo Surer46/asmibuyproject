@@ -76,6 +76,7 @@ export interface ItemCotizacionInput {
 }
 
 export interface PartidaCotizacionDTO {
+  recetaHuella?: string;
   platilloId: number;
   nombrePlatillo: string;
   precioUnitario: string;
@@ -739,7 +740,7 @@ export class PromocionesService {
       // Lectura atómica consistente de platillos con bloqueo opcional en orden determinista (CW-14)
       let sqlPlatillos = 'SELECT id, nombre, precio, activo FROM platillos WHERE id = ANY($1) ORDER BY id ASC';
       if (bloquearParaConfirmacion) {
-        sqlPlatillos += ' FOR SHARE';
+        sqlPlatillos += ' FOR UPDATE';
       }
       const resPlatillos = await db.query(sqlPlatillos, [idsPlatillos]);
       const platillosMap = new Map(resPlatillos.rows.map((r: any) => [r.id, r]));
@@ -850,6 +851,7 @@ export class PromocionesService {
       const subtotalNeto = subtotalBruto.minus(descuentoPartida).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
       partidas.push({
+        recetaHuella: await this.obtenerHuellaReceta(platillo.id, clienteDb),
         platilloId: platillo.id,
         nombrePlatillo: platillo.nombre,
         precioUnitario: platillo.precio.toFixed(2),
@@ -935,6 +937,7 @@ export class PromocionesService {
         const pActual = cotizacionActual.partidas.find((item) => item.platilloId === pPrevia.platilloId);
         if (!pActual) return true;
         return (
+          pActual.recetaHuella !== pPrevia.recetaHuella ||
           pActual.precioUnitario !== pPrevia.precioUnitario ||
           pActual.cantidad !== pPrevia.cantidad ||
           pActual.subtotalBruto !== pPrevia.subtotalBruto ||
@@ -970,6 +973,16 @@ export class PromocionesService {
   // ==========================================
   // HELPERS DE MAPEO
   // ==========================================
+
+  private static async obtenerHuellaReceta(id: number, clienteDb?: PoolClient | Pool): Promise<string> {
+    const platillo = await CatalogoService.obtenerPlatilloPorId(id, clienteDb);
+    return JSON.stringify({
+      valida: platillo?.recetaValida ?? false,
+      ingredientes: [...(platillo?.ingredientes || [])]
+        .sort((a, b) => a.ingredienteId - b.ingredienteId)
+        .map(i => [i.ingredienteId, i.unidad, new Decimal(i.cantidad).toString()])
+    });
+  }
 
   private static mapearFilaADTO(row: any, nombrePlatillo: string, precioPlatillo: string, ahora: Date): PromocionDTO {
     const duracion = row.duracion as DuracionPromocion;

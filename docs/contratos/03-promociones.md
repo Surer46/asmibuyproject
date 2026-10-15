@@ -1,4 +1,6 @@
 # Contrato de Descuentos y Promociones (Integrante 3)
+
+> Propuesta de integración A2 (15-10-2026), pendiente de revisión de propietarios 2/3/1: las partidas de cotización incluyen `recetaHuella`, derivada de la API pública de Catálogo. La revalidación compara esa huella además de precios/promociones. Para confirmar, el bloqueo inicial de platillos es `FOR UPDATE` ascendente, no SHARE, compatible con consumo y edición de receta. Ver la adenda de [Ventas](04-ventas-reportes.md).
 **Versión:** 2.1  
 **Fecha:** 29 de septiembre de 2026  
 **Autor:** Integrante 3 (Descuentos y Promociones)  

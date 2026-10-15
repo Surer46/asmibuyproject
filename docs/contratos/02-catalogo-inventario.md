@@ -1,4 +1,6 @@
 # Contrato de Catálogo e Inventario (Integrante 2)
+
+> Coordinación A2 propuesta (15-10-2026), pendiente de revisión de 2/3/1: editar una receta bloquea primero su platillo `FOR UPDATE`, antes del DELETE/INSERT de detalle. Cotización/confirmación usa esa misma exclusión ordenada y deriva `recetaHuella` mediante `obtenerPlatilloPorId(id, clienteDb)`. Consumo mantiene la misma API y bloqueos ascendentes de ingredientes; no hay conversión SHARE→UPDATE de platillos. Ver adenda de [Ventas](04-ventas-reportes.md).
 **Versión:** 2.1  
 **Fecha:** 28 de septiembre de 2026  
 **Autor:** Integrante 2 (Catálogo e Inventario)  

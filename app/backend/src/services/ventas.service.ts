@@ -11,6 +11,7 @@ import {
 import { InventarioService, ItemConsumoDTO } from './inventario.service';
 import { PromocionesService, ResultadoCotizacionDTO } from './promociones.service';
 import { CatalogoService } from './catalogo.service';
+import { normalizarPeriodo } from './periodo-ventas';
 
 // Configuración de decimal.js según reglas de AGENTS.md
 Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
@@ -204,31 +205,13 @@ export class VentasService {
   private static parsearRangoFechas(filtro: { fechaInicio?: string; fechaFin?: string }): {
     fechaInicioISO: string | null;
     fechaFinISO: string | null;
+    fechaFinExclusiva: boolean;
   } {
-    let fechaInicioISO: string | null = null;
-    let fechaFinISO: string | null = null;
-
-    if (filtro.fechaInicio && filtro.fechaInicio.trim()) {
-      const str = filtro.fechaInicio.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-        fechaInicioISO = `${str}T00:00:00.000Z`;
-      } else {
-        const d = new Date(str);
-        fechaInicioISO = isNaN(d.getTime()) ? null : d.toISOString();
-      }
+    try {
+      return normalizarPeriodo(filtro);
+    } catch {
+      throw new ErrorVenta('PERIODO_INVALIDO', 'Fechas, rango o BUSINESS_TIME_ZONE inválidos.', 400);
     }
-
-    if (filtro.fechaFin && filtro.fechaFin.trim()) {
-      const str = filtro.fechaFin.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-        fechaFinISO = `${str}T23:59:59.999Z`;
-      } else {
-        const d = new Date(str);
-        fechaFinISO = isNaN(d.getTime()) ? null : d.toISOString();
-      }
-    }
-
-    return { fechaInicioISO, fechaFinISO };
   }
 
   /**
@@ -240,7 +223,7 @@ export class VentasService {
    * 5. Abre transacción atómica única (PoolClient con BEGIN/COMMIT/ROLLBACK).
    * 6. Inserta encabezado de orden y detalle con snapshots históricos completos (CW-15).
    * 7. Descuenta el inventario mediante InventarioService.descontarInventarioPorVenta (CW-05).
-   * 8. Resuelve colisiones concurrentes en clave de idempotencia reconsultando la operación original (CW-07).
+   * 8. Serializa la clave de idempotencia y reconsulta con el mismo cliente (CW-07).
    */
   static async confirmarVenta(input: ConfirmarVentaInput, usuarioId: number): Promise<OrdenDTO> {
     const { claveIdempotencia, metodoPago, items, cotizacionAceptada } = input;
@@ -301,6 +284,15 @@ export class VentasService {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
+
+        // Serializar la identidad antes de tomar bloqueos de catálogo/inventario.
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 4))', [claveIdempotencia.trim()]);
+        const existente = await this.buscarPorClaveIdempotencia(claveIdempotencia.trim(), client);
+        if (existente) {
+          const resultado = this.verificarReintentoIdempotente(existente, usuarioId, metodoPago, items, cotizacionAceptada);
+          await client.query('COMMIT');
+          return resultado;
+        }
 
         // Hallazgo Alta 4 / CW-14: Revalidar consistencia de cotización DENTRO de la transacción
         // con bloqueo determinista ordenado en los registros participantes
@@ -469,11 +461,11 @@ export class VentasService {
         }));
         await InventarioService.descontarInventarioPorVenta(client, ordenId, usuarioId, itemsConsumo);
 
-        await client.query('COMMIT');
-
-        // Obtener nombre del usuario cajero
-        const userRes = await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [usuarioId]);
+        // Construir la respuesta con el mismo cliente, antes del COMMIT.
+        const userRes = await client.query('SELECT nombre FROM usuarios WHERE id = $1', [usuarioId]);
         const nombreCajero = userRes.rows[0]?.nombre || `Usuario #${usuarioId}`;
+
+        await client.query('COMMIT');
 
         return {
           id: ordenId,
@@ -507,30 +499,10 @@ export class VentasService {
           creadoEn: ahora.toISOString()
         };
       } catch (err: any) {
-        await client.query('ROLLBACK');
-        client.release();
-
-        // Hallazgo Alta 3: Carrera concurrente en clave_idempotencia (SQL 23505)
-        if (
-          err.code === '23505' &&
-          (err.constraint?.includes('idempotencia') ||
-            err.message?.includes('clave_idempotencia') ||
-            err.detail?.includes('clave_idempotencia'))
-        ) {
-          const ordenConcurrente = await this.buscarPorClaveIdempotencia(claveIdempotencia.trim());
-          if (ordenConcurrente) {
-            return this.verificarReintentoIdempotente(
-              ordenConcurrente,
-              usuarioId,
-              metodoPago,
-              items,
-              cotizacionAceptada
-            );
-          }
-        }
-
-        if (err instanceof ErrorVenta) throw err;
+        await client.query('ROLLBACK').catch(() => undefined);
         throw err;
+      } finally {
+        client.release();
       }
     }
 
@@ -716,31 +688,28 @@ export class VentasService {
   /**
    * Busca una orden por su clave de idempotencia
    */
-  static async buscarPorClaveIdempotencia(clave: string): Promise<OrdenDTO | null> {
+  static async buscarPorClaveIdempotencia(clave: string, clienteDb?: PoolClient): Promise<OrdenDTO | null> {
     if (!clave) return null;
 
     if (process.env.DATABASE_URL) {
-      try {
-        const sql = `
-          SELECT o.*, u.nombre AS nombre_cajero, ua.nombre AS nombre_usuario_anulacion
-          FROM ordenes o
-          LEFT JOIN usuarios u ON o.usuario_id = u.id
-          LEFT JOIN usuarios ua ON o.usuario_anulacion_id = ua.id
-          WHERE o.clave_idempotencia = $1;
-        `;
-        const res = await pool.query(sql, [clave]);
-        if (res.rows.length === 0) return null;
+      const db = clienteDb || pool;
+      const sql = `
+        SELECT o.*, u.nombre AS nombre_cajero, ua.nombre AS nombre_usuario_anulacion
+        FROM ordenes o
+        LEFT JOIN usuarios u ON o.usuario_id = u.id
+        LEFT JOIN usuarios ua ON o.usuario_anulacion_id = ua.id
+        WHERE o.clave_idempotencia = $1;
+      `;
+      const res = await db.query(sql, [clave]);
+      if (res.rows.length === 0) return null;
 
-        const o = res.rows[0];
-        const detRes = await pool.query(
-          `SELECT * FROM orden_detalle WHERE orden_id = $1 ORDER BY id ASC`,
-          [o.id]
-        );
+      const o = res.rows[0];
+      const detRes = await db.query(
+        `SELECT * FROM orden_detalle WHERE orden_id = $1 ORDER BY id ASC`,
+        [o.id]
+      );
 
-        return this.mapearFilaADTO(o, detRes.rows);
-      } catch (e) {
-        console.warn('Fallback a memoria al buscar por clave idempotencia');
-      }
+      return this.mapearFilaADTO(o, detRes.rows);
     }
 
     const ord = almacenMemoria.ordenes.find((o) => o.claveIdempotencia === clave);
@@ -812,7 +781,7 @@ export class VentasService {
     perfil: string
   ): Promise<ResumenPeriodoVentasDTO> {
     const ordenesList: OrdenDTO[] = [];
-    const { fechaInicioISO, fechaFinISO } = this.parsearRangoFechas(filtro);
+    const { fechaInicioISO, fechaFinISO, fechaFinExclusiva } = this.parsearRangoFechas(filtro);
 
     if (process.env.DATABASE_URL) {
       try {
@@ -831,14 +800,14 @@ export class VentasService {
           sql += ` AND o.usuario_id = $${params.length}`;
         }
 
-        // Filtro por rango de fechas (UTC inclusivo)
+        // Días civiles del negocio: fin exclusivo al inicio del día siguiente.
         if (fechaInicioISO) {
           params.push(fechaInicioISO);
           sql += ` AND o.creado_en >= $${params.length}`;
         }
         if (fechaFinISO) {
           params.push(fechaFinISO);
-          sql += ` AND o.creado_en <= $${params.length}`;
+          sql += ` AND o.creado_en ${fechaFinExclusiva ? '<' : '<='} $${params.length}`;
         }
 
         sql += ` ORDER BY o.creado_en DESC, o.id DESC;`;
@@ -872,7 +841,7 @@ export class VentasService {
     }
     if (fechaFinISO) {
       const fin = new Date(fechaFinISO).getTime();
-      lista = lista.filter((o) => o.creadoEn.getTime() <= fin);
+      lista = lista.filter((o) => fechaFinExclusiva ? o.creadoEn.getTime() < fin : o.creadoEn.getTime() <= fin);
     }
 
     lista.sort((a, b) => b.creadoEn.getTime() - a.creadoEn.getTime() || b.id - a.id);

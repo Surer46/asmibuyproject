@@ -46,3 +46,37 @@ Las compilaciones y las comprobaciones de memoria ya están incluidas en el resu
 La entrega del primer ciclo examinada quedó registrada íntegra en el commit `bc318f00983b1df2d9b435c82e47a68d253ec5da`. El integrante 4 atiende A2-4-01 a A2-4-07. Coordinar A2-4-02 con A2-2-01 y A2-3-03, y A2-4-04 con A2-2-02. Los cambios de contratos y de archivos compartidos requieren coordinación con sus propietarios.
 
 Entregar resultados por ID con archivos, comandos, PostgreSQL aislado para concurrencia/rollback y pruebas reales de recuperación en navegador. Los revisores humanos 3, 2 y 1 conservan sus decisiones. La publicación prepara el ciclo de correcciones; los fallos técnicos registrados siguen abiertos.
+
+---
+
+## Resolución de pendientes de Auditoría 2 por el Integrante 4
+
+Fecha de resolución: 15 de octubre de 2026. Estado: **correcciones técnicas implementadas y verificadas (en revisión de revisores independientes 3, 2 y 1)**.
+
+Se conservan intactos los hallazgos y reproducciones originales anteriores. La entrega técnica completa, comandos y solicitudes de revisión se detallan en [docs/auditorias/W4-Auditoria-2.md](../../docs/auditorias/W4-Auditoria-2.md).
+
+| ID | Gravedad | Estado | Solución implementada y evidencia técnica |
+| --- | --- | --- | --- |
+| **A2-4-01** | Crítica | **Resuelto** | Se aseguró la liberación estricta del cliente PostgreSQL mediante bloque `finally { client.release(); }` en `VentasService.confirmarVenta` (`ventas.service.ts`). Además, la consulta de nombre del usuario cajero se ejecuta antes del `COMMIT` utilizando el mismo cliente transaccional, eliminando la necesidad de solicitar una conexión adicional del pool tras el commit. Verificado en PostgreSQL 18.4 aislado con 14 ventas consecutivas (superando el pool máximo de 10): el pool recupera todas las conexiones ociosas (`pool.idleCount === pool.totalCount`, `pool.waitingCount === 0`) y cada respuesta coincide exactamente con lo persistido. |
+| **A2-4-02** | Alta (compartida con 2 y 3) | **Resuelto** | Se eliminó la conversión incompatible SHARE→UPDATE sobre platillos mediante el protocolo acordado: la revalidación transaccional (`PromocionesService.validarConsistenciaCotizacion`) adquiere `FOR UPDATE` ordenado por ID ascendente en platillos desde el inicio; la serialización de confirmaciones concurrentes se garantiza mediante `SELECT pg_advisory_xact_lock(hashtextextended($1, 4))` sobre la clave de idempotencia antes de tomar bloqueos de negocio. Verificado en PostgreSQL: dos cajas sobre el mismo platillo con claves distintas logran dos confirmaciones sin deadlocks (40P01), y 12 envíos concurrentes de la misma clave generan una sola orden sin agotar el pool. |
+| **A2-4-03** | Alta | **Resuelto** | Se refactorizó la gestión de transacciones en vuelo en `VentaComponent` (`venta.component.ts`): la clave y la copia inmutable de la solicitud aceptada (`ConfirmarVentaInput`) se persisten por usuario en `localStorage` (`asmibuy_venta_pendiente:<usuarioId>`). Los errores de red, respuestas inciertas o fallos de servidor preservan la clave y solicitud, bloqueando el inicio de una nueva venta (`operacionBloqueada()`). Se eliminó el botón o flujo de descarte arbitrario; la orden solo se limpia tras confirmación fehaciente en el servidor o rechazo definitivo. Se implementó restauración automática tras recarga/navegación y aislamiento estricto por usuario en inicio/cierre de sesión. Verificado en Microsoft Edge real (15/15 pruebas automatizadas con intercepción de red tras COMMIT y abortos previos). |
+| **A2-4-04** | Alta (compartida con 2) | **Resuelto** | Se incorporó `recetaHuella` canónica a cada partida de cotización (`PromocionesService`), representando la validez y los insumos ordenados con cantidades decimales normalizadas. La revalidación dentro de `confirmarVenta` recalcula y contrasta esta huella: si la receta fue editada en Catálogo (ej. consumo 1 a 2), la cotización previa es rechazada con `COTIZACION_DESACTUALIZADA` (409) sin escrituras ni consumos erróneos, exigiendo reaceptar el nuevo resumen. La nueva cotización aceptada genera un snapshot de receta de 2 y movimiento de -2.000. Probado en PostgreSQL 18.4. |
+| **A2-4-05** | Alta (exposición de credenciales) | **Resuelto** | Se eliminó la impresión de `DATABASE_URL` y variables de conexión en `verificar-auditoria1-w4.ts`. Dicha suite se restringió estrictamente al modo de memoria aislado y aborta inmediatamente si detecta `DATABASE_URL`. Las pruebas con PostgreSQL real se aislaron en `verificar-auditoria2-w4.ts` requiriendo obligatoriamente `TEST_DATABASE_URL` local dedicada (`asmibuy_test_*`), redactando secretos y sin volcar credenciales ni objetos `pg` a logs ni auditorías. |
+| **A2-4-06** | Media | **Resuelto** | Se implementó el servicio `periodo-ventas.ts` con la función `normalizarPeriodo`, configurado para utilizar la zona horaria del negocio `BUSINESS_TIME_ZONE` (predeterminada `America/Mexico_City`). Las fechas cortas `YYYY-MM-DD` se convierten a límites del día local (inicio inclusivo y fin exclusivo al inicio del día siguiente en UTC). Se validan estrictamente formatos, se rechazan fechas imposibles (ej. 2026-02-30) y rangos invertidos con `PERIODO_INVALIDO` (400). Verificado en PostgreSQL con ventas a las 19:30 local y límites de microsegundos incluidos. |
+| **A2-4-07** | Evidencia/documentación | **En seguimiento / En revisión** | Se rectificó el informe histórico de Auditoría 1 aclarando que sus afirmaciones no constituían aprobación vigente. Se actualizaron los planes y reportes de auditoría W4-02 a W4-06 manteniendo las casillas abiertas para revisión independiente humana. Se generó el informe de segundo ciclo `docs/auditorias/W4-Auditoria-2.md` con evidencia real en navegador Edge (15/15) y PostgreSQL 18.4 (47/47). Las decisiones humanas de los integrantes 3, 2 y 1 se mantienen en estado `en revisión` conforme a las reglas del proyecto, sin atribuir aprobaciones no concedidas ni pruebas en dispositivos móviles físicos no realizadas. |
+
+### Batería de pruebas automatizadas del Integrante 4 ejecutadas y aprobadas:
+
+1. `node app/backend/dist/scripts/verificar-ventas-w4-03.js` → **36/36 exitosas**
+2. `node app/backend/dist/scripts/verificar-historial-w4-04.js` → **15/15 exitosas**
+3. `node app/backend/dist/scripts/verificar-anulacion-w4-05.js` → **21/21 exitosas**
+4. `node app/backend/dist/scripts/verificar-recorrido-venta-w4-06.js` → **28/28 exitosas**
+5. `node app/backend/dist/scripts/verificar-auditoria1-w4.js` → **37/37 exitosas**
+6. `node app/backend/dist/scripts/verificar-integracion-ventas-w3-05.js` → **19/19 exitosas**
+7. `node app/backend/dist/scripts/verificar-auditoria1-w3.js` → **42/42 exitosas**
+8. `node app/backend/dist/scripts/verificar-auditoria1-w2.js` → **26/26 exitosas**
+9. `node app/backend/dist/scripts/verificar-auditoria2-w2.js` → **14/14 exitosas**
+10. `node app/backend/dist/scripts/verificar-auditoria2-w4.js` → **47/47 comprobaciones en PostgreSQL 18.4 aislado**
+11. `node app/frontend/scripts/verificar-recuperacion-a2-w4.cjs` → **15/15 pruebas de recuperación en Microsoft Edge 155 real**
+
+**Total reportado por el ejecutor: 300 comprobaciones exitosas (238 en memoria/inspección de código, 47 en PostgreSQL aislado y 15 en Edge), según las cifras enumeradas. No representa aprobación humana independiente. Frontend y backend compilan limpiamente.**

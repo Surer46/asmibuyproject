@@ -4,6 +4,8 @@
 
 Versión 2.1. Estado: en revisión. Responsable personal: Integrante 4. Revisor principal: integrante 3.
 
+Actualización 15-10-2026: segundo ciclo en [W4-Auditoria-2](../../docs/auditorias/W4-Auditoria-2.md). Las casillas de aprobación y navegadores físicos se mantienen abiertas: las pruebas automatizadas no sustituyen revisión humana ni Chrome Android/Safari iPhone.
+
 Carrito, cotización, cobro, comprobante en pantalla, historial, total por periodo y anulación sencilla.
 
 Leer [spec](../../spec.md), [reglas generales](../../AGENTS.md), [reglas locales](AGENTS.md), [arquitectura](../../docs/arquitectura-tecnica.md) y [matriz](../../docs/matriz-aceptacion.md). Usar [frontend](frontend/README.md) y [backend](backend/README.md). P0 y P1 son obligatorios; ejecutar por dependencias.
@@ -29,7 +31,7 @@ Resultado: Contrato de cotizar, confirmar, recuperar y anular acordado.
 - [x] Acordar la transacción completa con inventario y evaluación económica con promociones.
 - [x] Coordinar tipos con W1-01 y definir recuperación de respuesta incierta sin venta sin conexión.
 - [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W4-01.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Completar `docs/auditorias/W4-01.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W4-02 Crear carrito y cotización web
 
@@ -43,7 +45,7 @@ Resultado: Trabajador prepara una venta y consulta importes del servidor.
 - [x] Mostrar subtotal, descuento, total y errores; integrar promociones cuando W3-05 esté disponible.
 - [x] Conservar la clave de una confirmación pendiente en el navegador, sin guardar credenciales allí.
 - [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W4-02.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Completar `docs/auditorias/W4-02.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W4-03 Confirmar venta y consumir stock
 
@@ -57,7 +59,7 @@ Resultado: Orden e inventario se confirman una sola vez o se revierten juntos.
 - [x] Confirmar importes aceptados y registrar folio, copias históricas y consumos, incluido lo bonificado.
 - [x] Resolver idempotencia y respuesta perdida con consulta/reintento de la misma clave; probar rollback y competencia por stock.
 - [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W4-03.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Completar `docs/auditorias/W4-03.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W4-04 Crear comprobante e historial
 
@@ -71,7 +73,7 @@ Resultado: Se consultan ventas y su detalle histórico por periodo.
 - [x] Crear historial por fechas y total de ventas confirmadas del periodo; trabajador ve las propias y administrador todas.
 - [x] Comprobar que editar catálogo o promociones no modifica ventas anteriores.
 - [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W4-04.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Completar `docs/auditorias/W4-04.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W4-05 Implementar anulación sencilla
 
@@ -85,7 +87,7 @@ Resultado: Administrador anula toda la venta con motivo y conserva el original.
 - [x] Mantener el consumo original; no realizar reintegros automáticos ni clasificar preparaciones.
 - [x] Excluir anuladas del total vigente; explicar que una recuperación física se registra por ajuste justificado de inventario y que no se reembolsa dinero automáticamente.
 - [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W4-05.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Completar `docs/auditorias/W4-05.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
 
 ## W4-06 Verificar el recorrido de venta
 
@@ -95,8 +97,8 @@ Dependencias: W4-04, W4-05, W2-05, W3-05.
 
 Resultado: Venta completa comprobada en navegadores móviles y de PC.
 
-- [x] Probar venta, promociones, alertas, anulación, historial y accesos con los módulos reales.
+- [ ] Completar el recorrido integrado de venta, promociones, alertas, anulación, historial y accesos en todos los entornos previstos (evidencia parcial en segundo ciclo).
 - [x] Probar doble clic, dos sesiones compitiendo por stock, pérdida de respuesta y recarga de página.
-- [x] Verificar Chrome Android, Safari iPhone y Chrome/Edge de PC; registrar versiones y evidencia para el cierre W1-06.
+- [ ] Verificar Chrome Android y Safari iPhone físicos; PC cuenta con evidencia Edge en el segundo ciclo. Registrar versiones y evidencia para el cierre W1-06.
 - [x] Verificar estructura y comportamiento pertinente con evidencia real; documentar entornos no disponibles.
-- [x] Completar `docs/auditorias/W4-06.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
+- [ ] Completar `docs/auditorias/W4-06.md` desde la [plantilla](../../docs/auditorias/plantilla.md) y obtener revisión independiente antes de cerrar.
