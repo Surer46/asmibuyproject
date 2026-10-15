@@ -831,6 +831,19 @@ export class CatalogoService {
 
     if (process.env.DATABASE_URL) {
       return await ejecutarTransaccion(async (client: PoolClient) => {
+        // A2-2-02: Adquirir FOR UPDATE en el platillo al inicio de la transacción,
+        // antes de modificar receta_detalle. Esto serializa la edición con cualquier
+        // transacción de venta concurrente que tenga FOR SHARE sobre el mismo platillo,
+        // garantizando que la cotización aceptada sea consistente con la receta que
+        // se va a persistir. El bloqueo se libera al COMMIT/ROLLBACK.
+        const lockRes = await client.query(
+          'SELECT id FROM platillos WHERE id = $1 FOR UPDATE;',
+          [id]
+        );
+        if (lockRes.rows.length === 0) {
+          throw new ErrorCatalogo('RECURSO_NO_ENCONTRADO', `El platillo con ID ${id} no existe.`, 404);
+        }
+
         if (input.receta !== undefined) {
           if (nuevoActivo && (!Array.isArray(input.receta) || input.receta.length === 0)) {
             throw new ErrorCatalogo('RECETA_INVALIDA', 'Un platillo activo debe tener al menos un ingrediente en su receta.');

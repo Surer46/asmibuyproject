@@ -390,11 +390,19 @@ export class InventarioService {
     const demandaAgregada = new Map<number, Decimal>();
 
     if (process.env.DATABASE_URL && client) {
-      // 1. Obtener y bloquear los platillos en orden determinista para evitar mutaciones de receta durante cobro
+      // 1. Leer los platillos en orden determinista dentro de la transacción.
+      // NOTA A2-2-01: La transacción de venta ya adquirió FOR SHARE sobre estos
+      // platillos mediante PromocionesService.validarConsistenciaCotizacion.
+      // Escalar a FOR UPDATE desde FOR SHARE provoca deadlock 40P01 cuando dos
+      // ventas del mismo platillo se procesan en paralelo. La lectura simple aquí
+      // es suficiente: el FOR SHARE evita que la receta se modifique concurrentemente
+      // (actualizarPlatillo ahora adquiere FOR UPDATE antes de tocar receta_detalle),
+      // y el FOR UPDATE sobre ingredientes (paso 3) es el bloqueo determinante
+      // para proteger el stock.
       const platilloIds = Array.from(new Set(items.map((i) => i.platilloId))).sort((a, b) => a - b);
 
       const platillosBloqueadosRes = await client.query(
-        'SELECT id, nombre, activo FROM platillos WHERE id = ANY($1) ORDER BY id FOR UPDATE;',
+        'SELECT id, nombre, activo FROM platillos WHERE id = ANY($1) ORDER BY id;',
         [platilloIds]
       );
 
