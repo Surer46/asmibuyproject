@@ -20,8 +20,7 @@ export const ventasRouter = Router();
  */
 ventasRouter.post('/ventas/confirmar', exigirAutenticacion, async (req: Request, res: Response) => {
   try {
-    const usuario = (req as any).usuario;
-    const usuarioId = usuario?.id || 1;
+    const { usuarioId } = usuarioDeSesion(req);
 
     const orden = await VentasService.confirmarVenta(req.body, usuarioId);
     res.status(200).json(orden);
@@ -36,10 +35,8 @@ ventasRouter.post('/ventas/confirmar', exigirAutenticacion, async (req: Request,
  */
 ventasRouter.get('/ventas/recuperar/:claveIdempotencia', exigirAutenticacion, async (req: Request, res: Response) => {
   try {
-    const usuario = (req as any).usuario;
-    const usuarioId = usuario?.id || 1;
-    const perfil = usuario?.perfil || 'TRABAJADOR';
-    const { claveIdempotencia } = req.params;
+    const { usuarioId, perfil } = usuarioDeSesion(req);
+    const claveIdempotencia = VentasService.normalizarClaveIdempotencia(req.params.claveIdempotencia);
 
     const orden = await VentasService.buscarPorClaveIdempotencia(claveIdempotencia);
 
@@ -75,9 +72,7 @@ ventasRouter.get('/ventas/recuperar/:claveIdempotencia', exigirAutenticacion, as
  */
 ventasRouter.get('/ventas/historial', exigirAutenticacion, async (req: Request, res: Response) => {
   try {
-    const usuario = (req as any).usuario;
-    const usuarioId = usuario?.id || 1;
-    const perfil = usuario?.perfil || 'TRABAJADOR';
+    const { usuarioId, perfil } = usuarioDeSesion(req);
 
     const { fechaInicio, fechaFin } = req.query;
 
@@ -111,9 +106,7 @@ ventasRouter.get('/ventas/:id', exigirAutenticacion, async (req: Request, res: R
       });
     }
 
-    const usuario = (req as any).usuario;
-    const usuarioId = usuario?.id || 1;
-    const perfil = usuario?.perfil || 'TRABAJADOR';
+    const { usuarioId, perfil } = usuarioDeSesion(req);
 
     const orden = await VentasService.obtenerPorId(id, usuarioId, perfil);
     res.json(orden);
@@ -144,9 +137,7 @@ ventasRouter.post('/ventas/:id/anular', exigirAdmin, async (req: Request, res: R
       });
     }
 
-    const usuario = (req as any).usuario;
-    const usuarioId = usuario?.id || 1;
-    const perfil = usuario?.perfil || 'ADMINISTRADOR';
+    const { usuarioId, perfil } = usuarioDeSesion(req);
     const motivo = req.body.motivo;
 
     const ordenAnulada = await VentasService.anularVenta(id, motivo, usuarioId, perfil);
@@ -157,8 +148,20 @@ ventasRouter.post('/ventas/:id/anular', exigirAdmin, async (req: Request, res: R
 });
 
 // =========================================================================
-// HELPER DE ERRORES ESTANDARIZADOS
+// HELPERS DE SESIÓN Y ERRORES ESTANDARIZADOS
 // =========================================================================
+
+/**
+ * Identidad tomada solo de la sesión validada por el middleware (A3-4-03).
+ * Sin usuario o perfil no se asume ninguna cuenta ni perfil por defecto.
+ */
+function usuarioDeSesion(req: Request): { usuarioId: number; perfil: 'ADMINISTRADOR' | 'TRABAJADOR' } {
+  const usuario = req.usuario;
+  if (!usuario || !Number.isInteger(usuario.id) || (usuario.perfil !== 'ADMINISTRADOR' && usuario.perfil !== 'TRABAJADOR')) {
+    throw new ErrorVenta('NO_AUTENTICADO', 'Debes iniciar sesión para realizar esta operación.', 401);
+  }
+  return { usuarioId: usuario.id, perfil: usuario.perfil };
+}
 
 function manejarError(res: Response, error: any) {
   if (error instanceof ErrorVenta) {

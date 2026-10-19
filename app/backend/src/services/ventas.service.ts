@@ -104,8 +104,26 @@ export interface ResumenPeriodoVentasDTO {
   ordenes: OrdenDTO[];
 }
 
+// Coincide con ordenes.clave_idempotencia VARCHAR(100); el navegador genera UUID v4 (36 caracteres).
+const PATRON_CLAVE_IDEMPOTENCIA = /^[A-Za-z0-9_-]{1,100}$/;
+
 export class VentasService {
   private static clavesEnVuelo = new Set<string>();
+
+  /**
+   * Valida la clave de idempotencia antes de consultar o escribir (A3-4-02).
+   * Una clave fuera del formato se rechaza como DATOS_INVALIDOS en lugar de llegar a PostgreSQL como 22001.
+   */
+  static normalizarClaveIdempotencia(clave: unknown): string {
+    const claveTrim = typeof clave === 'string' ? clave.trim() : '';
+    if (!PATRON_CLAVE_IDEMPOTENCIA.test(claveTrim)) {
+      throw new ErrorVenta(
+        'DATOS_INVALIDOS',
+        'La clave de idempotencia es obligatoria y debe tener de 1 a 100 caracteres alfanuméricos, guion o guion bajo.'
+      );
+    }
+    return claveTrim;
+  }
 
   /**
    * Genera un folio formateado para la orden: ej. ORD-00001
@@ -226,12 +244,10 @@ export class VentasService {
    * 8. Serializa la clave de idempotencia y reconsulta con el mismo cliente (CW-07).
    */
   static async confirmarVenta(input: ConfirmarVentaInput, usuarioId: number): Promise<OrdenDTO> {
-    const { claveIdempotencia, metodoPago, items, cotizacionAceptada } = input;
+    const { metodoPago, items, cotizacionAceptada } = input;
 
     // 1. Validaciones básicas de entrada
-    if (!claveIdempotencia || typeof claveIdempotencia !== 'string' || claveIdempotencia.trim().length === 0) {
-      throw new ErrorVenta('DATOS_INVALIDOS', 'La clave de idempotencia es obligatoria para confirmar la venta.');
-    }
+    const claveIdempotencia = this.normalizarClaveIdempotencia(input.claveIdempotencia);
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new ErrorVenta('ORDEN_VACIA', 'La orden debe contener al menos un platillo.');
@@ -726,29 +742,24 @@ export class VentasService {
     let orden: OrdenDTO | null = null;
 
     if (process.env.DATABASE_URL) {
-      try {
-        const sql = `
-          SELECT o.*, u.nombre AS nombre_cajero, ua.nombre AS nombre_usuario_anulacion
-          FROM ordenes o
-          LEFT JOIN usuarios u ON o.usuario_id = u.id
-          LEFT JOIN usuarios ua ON o.usuario_anulacion_id = ua.id
-          WHERE o.id = $1;
-        `;
-        const res = await pool.query(sql, [id]);
-        if (res.rows.length > 0) {
-          const o = res.rows[0];
-          const detRes = await pool.query(
-            `SELECT * FROM orden_detalle WHERE orden_id = $1 ORDER BY id ASC`,
-            [o.id]
-          );
-          orden = this.mapearFilaADTO(o, detRes.rows);
-        }
-      } catch (e) {
-        console.warn('Fallback a memoria al obtener orden por ID');
+      // A3-4-01: un fallo de PostgreSQL se propaga; no se sustituye por datos en memoria ni por 404.
+      const sql = `
+        SELECT o.*, u.nombre AS nombre_cajero, ua.nombre AS nombre_usuario_anulacion
+        FROM ordenes o
+        LEFT JOIN usuarios u ON o.usuario_id = u.id
+        LEFT JOIN usuarios ua ON o.usuario_anulacion_id = ua.id
+        WHERE o.id = $1;
+      `;
+      const res = await pool.query(sql, [id]);
+      if (res.rows.length > 0) {
+        const o = res.rows[0];
+        const detRes = await pool.query(
+          `SELECT * FROM orden_detalle WHERE orden_id = $1 ORDER BY id ASC`,
+          [o.id]
+        );
+        orden = this.mapearFilaADTO(o, detRes.rows);
       }
-    }
-
-    if (!orden) {
+    } else {
       const ord = almacenMemoria.ordenes.find((o) => o.id === id);
       if (ord) {
         const partidas = almacenMemoria.ordenDetalles.filter((d) => d.ordenId === ord.id);
@@ -784,48 +795,55 @@ export class VentasService {
     const { fechaInicioISO, fechaFinISO, fechaFinExclusiva } = this.parsearRangoFechas(filtro);
 
     if (process.env.DATABASE_URL) {
-      try {
-        let sql = `
-          SELECT o.*, u.nombre AS nombre_cajero, ua.nombre AS nombre_usuario_anulacion
-          FROM ordenes o
-          LEFT JOIN usuarios u ON o.usuario_id = u.id
-          LEFT JOIN usuarios ua ON o.usuario_anulacion_id = ua.id
-          WHERE 1=1
-        `;
-        const params: any[] = [];
+      // A3-4-01: un fallo de PostgreSQL se propaga como error; nunca se responde un periodo vacío desde memoria.
+      let sql = `
+        SELECT o.*, u.nombre AS nombre_cajero, ua.nombre AS nombre_usuario_anulacion
+        FROM ordenes o
+        LEFT JOIN usuarios u ON o.usuario_id = u.id
+        LEFT JOIN usuarios ua ON o.usuario_anulacion_id = ua.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
 
-        // Filtro por perfil
-        if (perfil === 'TRABAJADOR') {
-          params.push(usuarioId);
-          sql += ` AND o.usuario_id = $${params.length}`;
-        }
-
-        // Días civiles del negocio: fin exclusivo al inicio del día siguiente.
-        if (fechaInicioISO) {
-          params.push(fechaInicioISO);
-          sql += ` AND o.creado_en >= $${params.length}`;
-        }
-        if (fechaFinISO) {
-          params.push(fechaFinISO);
-          sql += ` AND o.creado_en ${fechaFinExclusiva ? '<' : '<='} $${params.length}`;
-        }
-
-        sql += ` ORDER BY o.creado_en DESC, o.id DESC;`;
-
-        const res = await pool.query(sql, params);
-
-        for (const row of res.rows) {
-          const detRes = await pool.query(
-            `SELECT * FROM orden_detalle WHERE orden_id = $1 ORDER BY id ASC`,
-            [row.id]
-          );
-          ordenesList.push(this.mapearFilaADTO(row, detRes.rows));
-        }
-
-        return this.construirResumen(ordenesList, filtro.fechaInicio || null, filtro.fechaFin || null);
-      } catch (e) {
-        console.warn('Fallback a memoria al listar historial');
+      // Filtro por perfil
+      if (perfil === 'TRABAJADOR') {
+        params.push(usuarioId);
+        sql += ` AND o.usuario_id = $${params.length}`;
       }
+
+      // Días civiles del negocio: fin exclusivo al inicio del día siguiente.
+      if (fechaInicioISO) {
+        params.push(fechaInicioISO);
+        sql += ` AND o.creado_en >= $${params.length}`;
+      }
+      if (fechaFinISO) {
+        params.push(fechaFinISO);
+        sql += ` AND o.creado_en ${fechaFinExclusiva ? '<' : '<='} $${params.length}`;
+      }
+
+      sql += ` ORDER BY o.creado_en DESC, o.id DESC;`;
+
+      const res = await pool.query(sql, params);
+
+      // A3-4-04: una sola consulta de partidas para todo el periodo, en lugar de una por orden.
+      const partidasPorOrden = new Map<number, any[]>();
+      if (res.rows.length > 0) {
+        const detRes = await pool.query(
+          `SELECT * FROM orden_detalle WHERE orden_id = ANY($1) ORDER BY orden_id ASC, id ASC`,
+          [res.rows.map((row) => row.id)]
+        );
+        for (const det of detRes.rows) {
+          const ordenId = Number(det.orden_id);
+          if (!partidasPorOrden.has(ordenId)) partidasPorOrden.set(ordenId, []);
+          partidasPorOrden.get(ordenId)!.push(det);
+        }
+      }
+
+      for (const row of res.rows) {
+        ordenesList.push(this.mapearFilaADTO(row, partidasPorOrden.get(Number(row.id)) || []));
+      }
+
+      return this.construirResumen(ordenesList, filtro.fechaInicio || null, filtro.fechaFin || null);
     }
 
     // Memoria

@@ -6,6 +6,8 @@ Versión 2.1. Estado: en revisión. Responsable personal: Integrante 4. Revisor 
 
 Actualización 15-10-2026: segundo ciclo en [W4-Auditoria-2](../../docs/auditorias/W4-Auditoria-2.md). Las casillas de aprobación y navegadores físicos se mantienen abiertas: las pruebas automatizadas no sustituyen revisión humana ni Chrome Android/Safari iPhone.
 
+Actualización 19-10-2026: tercer ciclo en [W4-Auditoria-3](../../docs/auditorias/W4-Auditoria-3.md) (A3-4-01 a A3-4-04 corregidos técnicamente por Claude Code en funciones del integrante 4). Estado sin cambios: en revisión hasta la decisión humana de 3, 2 y 1 y las pruebas en dispositivos físicos.
+
 Carrito, cotización, cobro, comprobante en pantalla, historial, total por periodo y anulación sencilla.
 
 Leer [spec](../../spec.md), [reglas generales](../../AGENTS.md), [reglas locales](AGENTS.md), [arquitectura](../../docs/arquitectura-tecnica.md) y [matriz](../../docs/matriz-aceptacion.md). Usar [frontend](frontend/README.md) y [backend](backend/README.md). P0 y P1 son obligatorios; ejecutar por dependencias.
