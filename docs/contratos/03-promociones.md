@@ -7,6 +7,11 @@
 
 Este documento establece la especificación formal del modelo de datos, tipos TypeScript (DTOs), reglas matemáticas de cálculo exacto, contratos de API REST y protocolos de integración entre el módulo de Promociones y los módulos de Ventas (Integrante 4) y Catálogo e Inventario (Integrante 2), en estricto cumplimiento con `spec.md` v2.1 y las reglas de `AGENTS.md`.
 
+## Adenda de integración — Auditoría 3 (19-10-2026, pendiente de revisión 2/4/1)
+
+- **Reloj de referencia unificado y sincronización NTP (A3-3-04):** En modo PostgreSQL (`DATABASE_URL`), tanto la cotización sin bloqueo (`PromocionesService.cotizarOrden`) como la revalidación transaccional al confirmar la venta (`PromocionesService.validarConsistenciaCotizacion` con `bloquearParaConfirmacion = true`) obtienen el instante de evaluación directamente del motor PostgreSQL mediante `SELECT clock_timestamp() AS ahora` bajo sesión configurada en `TimeZone=UTC`. La hora autoritativa al confirmar la venta es siempre la de la base de datos tomada inmediatamente después de adquirir los bloqueos deterministas (`FOR UPDATE` sobre platillos y `FOR SHARE OF pr` sobre promociones). Los servidores de aplicación (Node.js) y de base de datos (PostgreSQL/Supabase) operan sincronizados por **NTP** en UTC para evitar desfases en los límites exactos de inicio inclusivo y fin exclusivo (`CW-10`).
+- **Alineación de marcas de tiempo `TIMESTAMPTZ` (coordinado con A3-1-02):** La tabla `promociones` utiliza `DEFAULT CURRENT_TIMESTAMP` en `creado_en` y `actualizado_en` (migración `007_corregir_defaults_timestamptz.sql`), preservando el instante UTC exacto con independencia de la zona horaria de la sesión.
+
 ## Adenda de integración — Auditoría 2 (15-10-2026, pendiente de revisión 2/4/1)
 
 - **Snapshot y huella de vigencia (A2-3-01):** `PromocionAplicadaSnapshotDTO` incorpora obligatoriamente `fechaInicio: string | null` y `fechaFin: string | null` (en formato ISO 8601 o null si la duración es `PERMANENTE`). La huella canónica calculada y comparada por `PromocionesService.validarConsistenciaCotizacion` incluye ambos campos. Cualquier alteración de fechas de inicio o fin de una promoción temporal (incluso si conserva el mismo ahorro o total) genera un cambio de huella y es rechazada con `COTIZACION_DESACTUALIZADA` (HTTP 409), exigiendo la aceptación de un nuevo resumen económico por parte del cliente antes de confirmar la venta.
@@ -33,8 +38,8 @@ Almacena las reglas promocionales configuradas por el administrador.
 * `fecha_fin` (`TIMESTAMP WITH TIME ZONE NULL`): Instante UTC de fin exclusivo. Obligatorio si `duracion = 'TEMPORAL'`, nulo si `duracion = 'PERMANENTE'`. Debe cumplir `fecha_fin > fecha_inicio`.
 * `estado` (`VARCHAR(20) NOT NULL DEFAULT 'ACTIVA' CHECK (estado IN ('ACTIVA', 'INACTIVA', 'RETIRADA'))`): Estado operativo. Una promoción `RETIRADA` es inmutable y no se puede reactivar ni eliminar físicamente para preservar la integridad referencial histórica de ventas.
 * `usuario_id` (`INTEGER NOT NULL REFERENCES usuarios(id)`): Identificador del usuario administrador que creó o modificó la promoción.
-* `creado_en` (`TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')`): Fecha y hora de creación en UTC.
-* `actualizado_en` (`TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')`): Fecha y hora de última modificación en UTC.
+* `creado_en` (`TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP`): Fecha y hora de creación en UTC.
+* `actualizado_en` (`TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP`): Fecha y hora de última modificación en UTC.
 
 ---
 

@@ -32,3 +32,29 @@ Fecha: 19 de octubre de 2026. Base revisada: `e6e0db5` (commit del integrante 3 
 ## Límites
 
 La verificación en PostgreSQL fue local y desechable, no en Supabase. La revisión del integrante 4 la preparó un agente de IA y requiere ratificación humana. No se modificó código del integrante 3.
+
+---
+
+## Resolución de pendientes de Auditoría 3 por el Integrante 3
+
+Fecha de resolución: 19 de octubre de 2026. Estado: **correcciones técnicas implementadas y verificadas en memoria (178/178) y en PostgreSQL 18.4 local desechable (18/18), total 196/196 pruebas automatizadas exitosas (0 fallos); en revisión humana de los integrantes 2 y 4**. Detalle completo y comandos reproducibles en [docs/auditorias/W3-Auditoria-3.md](../../docs/auditorias/W3-Auditoria-3.md).
+
+| ID | Gravedad | Estado | Solución implementada y evidencia técnica |
+| --- | --- | --- | --- |
+| **A3-3-01** | Alta (evidencia) | **Resuelto** | 1. En `app/backend/src/scripts/verificar-auditoria2-w3.ts`, se reemplazaron todas las fechas fijas del `15-10-2026` por ventanas relativas al instante de ejecución (`Date.now() ± N horas`).<br>2. En `PromocionesService.validarConsistenciaCotizacion` (`promociones.service.ts`), se añadió el parámetro opcional `fechaReferencia?: Date` para pruebas con reloj controlado sin bloqueo.<br>3. Se ajustó la inspección del bloqueo de `CatalogoService` en la prueba 12 para contemplar `SELECT id, nombre, precio, activo FROM platillos WHERE id = $1 FOR UPDATE;` (actualizado en `A3-2-01`).<br>4. Se ejecutó `verificar-auditoria2-w3.js` el `19-10-2026` (**16/16 PASS**) y se repitió simulando otra fecha (`2026-11-25T15:30:00.000Z`, **16/16 PASS**), además de probar +12 días en memoria y +20 días en PostgreSQL. |
+| **A3-3-02** | Media (falso positivo) | **Resuelto** | 1. En la prueba «modificar `fechaInicio`» (`verificar-auditoria2-w3.ts` y `verificar-auditoria3-w3.ts`), se afirma explícitamente el motivo del rechazo HTTP 409 (`COTIZACION_DESACTUALIZADA`): se comprueba que `err.detalles.nuevaCotizacion.promocionAplicada` **no es nulo**, conserva la misma promoción vigente (`id`), mantiene intactos el ahorro y el total (`$192.00` / `$48.00`), y refleja la nueva `fechaInicio`.<br>2. En la prueba `A2-3-02` de `verificar-auditoria2-w3.ts`, se eliminó la edición de `fechaFin` y se reemplazó por una ventana de 200 ms reales que vence por paso natural del tiempo (espera de 320 ms) con `fechaFin` inalterada.<br>3. En `verificar-auditoria3-w3.ts` (sección 2), se incorporó y ejecutó en PostgreSQL 18.4 el escenario real de espera de bloqueos: promoción del 100 % que vence en `1.5 s`, cotización a `$0.00`, otra sesión retiene `SELECT id FROM platillos WHERE id = $1 FOR UPDATE` durante `2.3 s`; al liberar, `confirmarVenta` evalúa `clock_timestamp()` post-bloqueos, rechaza con `COTIZACION_DESACTUALIZADA` (409, `promocionAplicada: null`, total `$120.00`) y **no crea ninguna orden**. |
+| **A3-3-03** | Media (evidencia) | **Resuelto** | Se creó la batería `app/backend/src/scripts/verificar-auditoria3-w3.ts` que exige `TEST_DATABASE_URL` apuntando exclusivamente a una base local desechable `asmibuy_test_*` (rechaza `DATABASE_URL` operativa y no imprime credenciales ni cadenas de conexión). Ejecutada sobre PostgreSQL **18.4** (`asmibuy_test_w3_a3`), aprobó **18/18** comprobaciones: aplicación de las 7 migraciones reales, `TimeZone=UTC`, cambio de `fechaInicio` y `fechaFin` conservando promoción, vencimiento durante espera de bloqueo `FOR UPDATE`, 6 ventas concurrentes cruzadas con desempate `CW-13` sin `40P01`, venta concurrente frente a edición de promoción sin `40P01`, conservación de marcas `TIMESTAMPTZ` bajo `America/Mexico_City` (desfase 0.001 s) y liberación completa del pool (`idleCount === totalCount`). |
+| **A3-3-04** | Baja | **Resuelto** | 1. En `PromocionesService.cotizarOrden` (`promociones.service.ts`), cuando `DATABASE_URL` está configurada, tanto la cotización sin bloqueo (cuando no se fuerza una `fechaEvaluacion` fija de prueba) como la revalidación con bloqueo (`bloquearParaConfirmacion = true`) consultan `SELECT clock_timestamp() AS ahora` en PostgreSQL, utilizando el mismo reloj en ambas rutas.<br>2. En [`docs/contratos/03-promociones.md`](../../docs/contratos/03-promociones.md) se añadió la **Adenda de integración — Auditoría 3**, documentando que la hora de referencia al confirmar es `clock_timestamp()` de la base de datos en UTC y que los servidores se sincronizan mediante **NTP**. |
+| **A3-3-05** | Evidencia (continúa A2-3-04) | **En seguimiento / En revisión** | El frontend Angular compila limpiamente (`npm run build:frontend`, bundle inicial `449.82 kB`). Conforme a `AGENTS.md`, no se atribuyen pruebas en dispositivos físicos no disponibles en este entorno (Chrome Android y Safari iPhone) ni se inventan aprobaciones humanas. Se solicita formalmente la revisión y decisión humana de los **Integrantes 2 y 4** sobre [W3-Auditoria-3](../../docs/auditorias/W3-Auditoria-3.md). |
+
+### Batería de pruebas automatizadas del Integrante 3 ejecutadas y aprobadas (19-10-2026)
+
+1. `node app/backend/dist/scripts/verificar-auditoria3-w3.js` (PostgreSQL 18.4 local `asmibuy_test_w3_a3`) → **18/18 exitosas**
+2. `node app/backend/dist/scripts/verificar-auditoria2-w3.js` (ejecución `19-10-2026` y repetición en fecha simulada `25-11-2026`) → **16/16 exitosas**
+3. `node app/backend/dist/scripts/verificar-promociones-w3-02.js` → **32/32 exitosas**
+4. `node app/backend/dist/scripts/verificar-calculo-w3-03.js` → **36/36 exitosas**
+5. `node app/backend/dist/scripts/verificar-integracion-ventas-w3-05.js` → **19/19 exitosas**
+6. `node app/backend/dist/scripts/verificar-promociones-integradas-w3-06.js` → **33/33 exitosas**
+7. `node app/backend/dist/scripts/verificar-auditoria1-w3.js` → **42/42 exitosas**
+
+**Total pruebas Integrante 3: 196/196 aprobadas (18 en PostgreSQL 18.4 + 178 en memoria, 0 fallos).**

@@ -775,19 +775,20 @@ export class PromocionesService {
       }
       const resPromos = await db.query(sqlPromos, [idsPlatillos]);
 
-      // A2-3-02: Obtener y revalidar la hora vigente después de adquirir los bloqueos relevantes
-      if (bloquearParaConfirmacion) {
+      // A2-3-02 y A3-3-04: Obtener la hora vigente desde PostgreSQL (clock_timestamp())
+      // después de adquirir los bloqueos en modo confirmación y también en la cotización
+      // sin bloqueo cuando no se inyecta una fechaEvaluacion explícita de prueba,
+      // garantizando el uso del mismo reloj del servidor de base de datos en ambas rutas.
+      if (bloquearParaConfirmacion || !fechaEvaluacion) {
         const timeRes = await db.query('SELECT clock_timestamp() AS ahora');
         fechaEfectiva = new Date(timeRes.rows[0].ahora);
-      } else if (!fechaEvaluacion) {
-        fechaEfectiva = new Date();
       }
 
       todasPromos = resPromos.rows.map((r: any) =>
         this.mapearFilaADTO(r, r.nombre_platillo, new Decimal(r.precio_platillo).toFixed(2), fechaEfectiva)
       );
     } else {
-      if (bloquearParaConfirmacion || !fechaEvaluacion) {
+      if (!fechaEvaluacion) {
         fechaEfectiva = new Date();
       }
       for (const platilloId of idsPlatillos) {
@@ -918,18 +919,20 @@ export class PromocionesService {
   static async validarConsistenciaCotizacion(
     cotizacionPrevia: ResultadoCotizacionDTO,
     clienteDb?: PoolClient | Pool,
-    bloquearParaConfirmacion: boolean = false
+    bloquearParaConfirmacion: boolean = false,
+    fechaReferencia?: Date
   ): Promise<ResultadoCotizacionDTO> {
     const items: ItemCotizacionInput[] = cotizacionPrevia.partidas.map((p) => ({
       platilloId: p.platilloId,
       cantidad: p.cantidad
     }));
 
-    // A2-3-02: No congelar la hora antes de adquirir los bloqueos.
-    // cotizarOrden obtendrá la hora de evaluación efectiva post-bloqueos en modo confirmación (CW-10/14)
+    // A2-3-02 / A3-3-01: En modo confirmación no se congela la hora antes de adquirir los bloqueos;
+    // cotizarOrden obtiene la hora de evaluación efectiva post-bloqueos (clock_timestamp() en BD).
+    // En pruebas sin bloqueo permite inyectar un reloj controlado (fechaReferencia).
     const cotizacionActual = await this.cotizarOrden(
       items,
-      undefined,
+      bloquearParaConfirmacion ? undefined : fechaReferencia,
       clienteDb,
       bloquearParaConfirmacion
     );

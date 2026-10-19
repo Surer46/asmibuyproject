@@ -102,11 +102,14 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────────
   console.log('📅 1. Snapshot cotizado y huella íntegra de vigencia (A2-3-01 / W3-05 / CW-14)');
 
-  await prueba('PromocionAplicadaSnapshotDTO incluye fechaInicio y fechaFin', async () => {
-    const tInicio = new Date('2026-10-15T10:00:00Z');
-    const tFin = new Date('2026-10-15T14:00:00Z');
+  const HORA_MS = 3_600_000;
 
-    const promo = await PromocionesService.crearPromocion(
+  await prueba('PromocionAplicadaSnapshotDTO incluye fechaInicio y fechaFin', async () => {
+    const baseMs = Date.now();
+    const tInicio = new Date(baseMs - 2 * HORA_MS);
+    const tFin = new Date(baseMs + 2 * HORA_MS);
+
+    await PromocionesService.crearPromocion(
       {
         nombre: 'Promo Temporal A2-1',
         platilloId: 1,
@@ -121,7 +124,7 @@ async function main() {
 
     const cotizacion = await PromocionesService.cotizarOrden(
       [{ platilloId: 1, cantidad: 2 }],
-      new Date('2026-10-15T11:00:00Z')
+      new Date(baseMs - 1 * HORA_MS)
     );
 
     if (!cotizacion.promocionAplicada) {
@@ -139,8 +142,9 @@ async function main() {
 
   await prueba('Rechaza con COTIZACION_DESACTUALIZADA al extender fechaFin manteniendo mismo ahorro y total', async () => {
     inicializarAlmacenMemoria();
-    const tInicio = new Date('2026-10-15T10:00:00Z');
-    const tFinOriginal = new Date('2026-10-15T14:00:00Z');
+    const baseMs = Date.now();
+    const tInicio = new Date(baseMs - 2 * HORA_MS);
+    const tFinOriginal = new Date(baseMs + 2 * HORA_MS);
 
     const promo = await PromocionesService.crearPromocion(
       {
@@ -155,37 +159,44 @@ async function main() {
       1
     );
 
-    // Cotizar a las 11:00 (dentro de la vigencia original)
+    // Cotizar dentro de la vigencia original (hace 1 h; la promoción sigue vigente ahora)
     // 2 x $120.00 = $240.00; 20% descuento = $48.00; Total = $192.00
     const cotizacionPrevia = await PromocionesService.cotizarOrden(
       [{ platilloId: 1, cantidad: 2 }],
-      new Date('2026-10-15T11:00:00Z')
+      new Date(baseMs - 1 * HORA_MS)
     );
 
     if (cotizacionPrevia.total !== '192.00' || cotizacionPrevia.descuentoTotal !== '48.00') {
       throw new Error(`Cotización previa con valores inesperados: ${cotizacionPrevia.total}`);
     }
 
-    // El administrador extiende fechaFin a las 18:00 (sigue siendo 20% y total $192.00)
-    const tFinExtendido = new Date('2026-10-15T18:00:00Z');
+    // El administrador extiende fechaFin 4 h adicionales (sigue siendo 20% y total $192.00)
+    const tFinExtendido = new Date(baseMs + 6 * HORA_MS);
     await PromocionesService.actualizarPromocion(
       promo.id,
       { fechaFin: tFinExtendido.toISOString() },
       1
     );
 
-    // Validar consistencia con la cotización previa
+    // Validar consistencia con la cotización previa (hora actual dentro de la ventana vigente)
     let rechazoEsperado = false;
     try {
       await PromocionesService.validarConsistenciaCotizacion(cotizacionPrevia);
     } catch (err: any) {
       if (err instanceof ErrorPromocion && err.codigo === 'COTIZACION_DESACTUALIZADA' && err.statusCode === 409) {
         rechazoEsperado = true;
-        if (!err.detalles || !err.detalles.nuevaCotizacion?.promocionAplicada) {
-          throw new Error('El error COTIZACION_DESACTUALIZADA debe devolver la nueva cotización con snapshot');
+        const nueva = err.detalles?.nuevaCotizacion;
+        if (!nueva || !nueva.promocionAplicada) {
+          throw new Error('El error COTIZACION_DESACTUALIZADA debe devolver la nueva cotización conservando la promoción vigente');
         }
-        if (err.detalles.nuevaCotizacion.promocionAplicada.fechaFin !== tFinExtendido.toISOString()) {
+        if (nueva.promocionAplicada.id !== promo.id) {
+          throw new Error(`Se esperaba conservar la promoción ${promo.id}, se obtuvo ${nueva.promocionAplicada.id}`);
+        }
+        if (nueva.promocionAplicada.fechaFin !== tFinExtendido.toISOString()) {
           throw new Error(`La nueva cotización debe reflejar el nuevo fin ${tFinExtendido.toISOString()}`);
+        }
+        if (nueva.total !== '192.00' || nueva.descuentoTotal !== '48.00') {
+          throw new Error(`El total y descuento deben mantenerse en 192.00 / 48.00, obtenidos: ${nueva.total} / ${nueva.descuentoTotal}`);
         }
       } else {
         throw err;
@@ -199,8 +210,9 @@ async function main() {
 
   await prueba('Rechaza con COTIZACION_DESACTUALIZADA al modificar fechaInicio manteniendo mismo ahorro y total', async () => {
     inicializarAlmacenMemoria();
-    const tInicioOriginal = new Date('2026-10-15T10:00:00Z');
-    const tFin = new Date('2026-10-15T18:00:00Z');
+    const baseMs = Date.now();
+    const tInicioOriginal = new Date(baseMs - 2 * HORA_MS);
+    const tFin = new Date(baseMs + 4 * HORA_MS);
 
     const promo = await PromocionesService.crearPromocion(
       {
@@ -217,11 +229,11 @@ async function main() {
 
     const cotizacionPrevia = await PromocionesService.cotizarOrden(
       [{ platilloId: 1, cantidad: 1 }],
-      new Date('2026-10-15T12:00:00Z')
+      new Date(baseMs - 1 * HORA_MS)
     );
 
-    // Modificar fechaInicio a las 09:00:00Z
-    const tInicioNuevo = new Date('2026-10-15T09:00:00Z');
+    // Adelantar fechaInicio 1 h adicional (hace 3 h); la promoción sigue vigente en el instante actual
+    const tInicioNuevo = new Date(baseMs - 3 * HORA_MS);
     await PromocionesService.actualizarPromocion(
       promo.id,
       { fechaInicio: tInicioNuevo.toISOString() },
@@ -234,6 +246,21 @@ async function main() {
     } catch (err: any) {
       if (err instanceof ErrorPromocion && err.codigo === 'COTIZACION_DESACTUALIZADA' && err.statusCode === 409) {
         rechazoEsperado = true;
+        // A3-3-02: Afirmar que el rechazo es por el cambio de fechaInicio y NO por vencimiento:
+        // la nueva cotización debe conservar la promoción activa y reflejar la nueva fechaInicio.
+        const nueva = err.detalles?.nuevaCotizacion;
+        if (!nueva || !nueva.promocionAplicada) {
+          throw new Error('FALLO A3-3-02: La promoción fue descartada por vencimiento en lugar de conservarse vigente');
+        }
+        if (nueva.promocionAplicada.id !== promo.id) {
+          throw new Error(`FALLO A3-3-02: Se esperaba conservar la promoción ${promo.id}, obtenida ${nueva.promocionAplicada.id}`);
+        }
+        if (nueva.promocionAplicada.fechaInicio !== tInicioNuevo.toISOString()) {
+          throw new Error(`FALLO A3-3-02: La nueva cotización no refleja la nueva fechaInicio (${tInicioNuevo.toISOString()}), obtuvo ${nueva.promocionAplicada.fechaInicio}`);
+        }
+        if (nueva.total !== cotizacionPrevia.total || nueva.descuentoTotal !== cotizacionPrevia.descuentoTotal) {
+          throw new Error(`FALLO A3-3-02: El ahorro/total cambió inesperadamente: ${nueva.total}`);
+        }
       } else {
         throw err;
       }
@@ -244,10 +271,11 @@ async function main() {
     }
   });
 
-  await prueba('Aprueba la cotización si las fechas de vigencia y parámetros permanecen idénticos', async () => {
+  await prueba('Aprueba la cotización si las fechas de vigencia y parámetros permanecen idénticos (y en otro día con reloj controlado)', async () => {
     inicializarAlmacenMemoria();
-    const tInicio = new Date('2026-10-15T10:00:00Z');
-    const tFin = new Date('2026-10-15T18:00:00Z');
+    const baseMs = Date.now();
+    const tInicio = new Date(baseMs - 2 * HORA_MS);
+    const tFin = new Date(baseMs + 4 * HORA_MS);
 
     await PromocionesService.crearPromocion(
       {
@@ -264,16 +292,49 @@ async function main() {
 
     const cotizacionPrevia = await PromocionesService.cotizarOrden(
       [{ platilloId: 1, cantidad: 1 }],
-      new Date('2026-10-15T12:00:00Z')
+      new Date(baseMs - 1 * HORA_MS)
     );
 
-    // Revalidación sin cambios
+    // 1. Revalidación con hora real actual
     const validada = await PromocionesService.validarConsistenciaCotizacion(cotizacionPrevia);
     if (validada.total !== cotizacionPrevia.total) {
       throw new Error(`Total alterado tras validación consistente: ${validada.total}`);
     }
     if (validada.promocionAplicada?.fechaFin !== tFin.toISOString()) {
       throw new Error('Snapshot de fechaFin alterado');
+    }
+
+    // 2. Revalidación repetida simulando otro día distinto (+12 días) mediante reloj controlado (A3-3-01)
+    inicializarAlmacenMemoria();
+    const otroDiaMs = baseMs + 12 * 24 * HORA_MS;
+    const iniOtroDia = new Date(otroDiaMs - 2 * HORA_MS);
+    const finOtroDia = new Date(otroDiaMs + 4 * HORA_MS);
+
+    await PromocionesService.crearPromocion(
+      {
+        nombre: 'Promo Otro Día',
+        platilloId: 1,
+        tipo: 'PORCENTAJE',
+        porcentaje: '25.00',
+        duracion: 'TEMPORAL',
+        fechaInicio: iniOtroDia.toISOString(),
+        fechaFin: finOtroDia.toISOString()
+      },
+      1
+    );
+
+    const cotOtroDia = await PromocionesService.cotizarOrden(
+      [{ platilloId: 1, cantidad: 1 }],
+      new Date(otroDiaMs - 1 * HORA_MS)
+    );
+    const valOtroDia = await PromocionesService.validarConsistenciaCotizacion(
+      cotOtroDia,
+      undefined,
+      false,
+      new Date(otroDiaMs)
+    );
+    if (valOtroDia.total !== '90.00' || valOtroDia.promocionAplicada?.fechaInicio !== iniOtroDia.toISOString()) {
+      throw new Error('Fallo en validación con reloj controlado en día distinto');
     }
   });
 
@@ -314,8 +375,9 @@ async function main() {
   console.log('\n⏱️ 2. Hora de evaluación post-bloqueos en revalidación (A2-3-02 / W3-05/06 / CW-10/14)');
 
   await prueba('Criterio CW-10: en t == fechaFin exacto la promoción NO es vigente (fin exclusivo)', async () => {
-    const tInicio = new Date('2026-10-15T12:00:00.000Z');
-    const tFin = new Date('2026-10-15T14:00:00.000Z');
+    const baseMs = Date.now();
+    const tInicio = new Date(baseMs - HORA_MS);
+    const tFin = new Date(baseMs + HORA_MS);
 
     const promo = {
       estado: 'ACTIVA' as const,
@@ -325,7 +387,7 @@ async function main() {
     };
 
     // 1 ms antes de fin -> VIGENTE
-    const unMsAntes = new Date('2026-10-15T13:59:59.999Z');
+    const unMsAntes = new Date(tFin.getTime() - 1);
     if (!PromocionesService.estaVigente(promo, unMsAntes)) {
       throw new Error('1 ms antes del fin debe ser vigente');
     }
@@ -336,20 +398,22 @@ async function main() {
     }
 
     // 1 ms después -> NO VIGENTE
-    const unMsDespues = new Date('2026-10-15T14:00:00.001Z');
+    const unMsDespues = new Date(tFin.getTime() + 1);
     if (PromocionesService.estaVigente(promo, unMsDespues)) {
       throw new Error('1 ms después del fin no debe ser vigente');
     }
   });
 
-  await prueba('A2-3-02: Previene venta a total 0.00 cuando promo 100% expira durante la revalidación', async () => {
+  await prueba('A2-3-02: Previene venta a total 0.00 cuando promo 100% expira por paso del tiempo durante la revalidación', async () => {
     inicializarAlmacenMemoria();
-    const tInicio = new Date('2026-10-15T10:00:00Z');
-    const tFin = new Date('2026-10-15T12:00:00Z');
+    const ahoraMs = Date.now();
+    const tInicio = new Date(ahoraMs - 60_000);
+    // La promoción vence en 200 ms reales (sin editar fechaFin posteriormente)
+    const tFin = new Date(ahoraMs + 200);
 
     const promoGratis = await PromocionesService.crearPromocion(
       {
-        nombre: 'Promo 100% Por Caducidad',
+        nombre: 'Promo 100% Por Caducidad Real',
         platilloId: 1, // $120.00
         tipo: 'PORCENTAJE',
         porcentaje: '100.00',
@@ -360,26 +424,24 @@ async function main() {
       1
     );
 
-    // 1. Cotización generada mientras la promoción estaba vigente (ej. 11:59:50Z)
-    const cotizacionCero = await PromocionesService.cotizarOrden(
-      [{ platilloId: 1, cantidad: 1 }],
-      new Date('2026-10-15T11:59:50Z')
-    );
+    // 1. Cotización generada mientras la promoción está vigente (total = 0.00)
+    const cotizacionCero = await PromocionesService.cotizarOrden([{ platilloId: 1, cantidad: 1 }]);
 
     if (cotizacionCero.total !== '0.00' || cotizacionCero.descuentoTotal !== '120.00') {
       throw new Error(`La cotización debía dar total 0.00, dio: ${cotizacionCero.total}`);
     }
+    if (cotizacionCero.promocionAplicada?.id !== promoGratis.id) {
+      throw new Error('La cotización inicial no aplicó la promoción gratuita');
+    }
 
-    // 2. Simulación de revalidación atómica: la transacción espera hasta después de tFin (ej. 12:00:05Z)
-    // El servicio debe evaluar la hora vigente DESPUÉS de adquirir los bloqueos.
-    // Si la revalidación reevalúa a fecha actual (o clock_timestamp()), la promoción ya no aplica.
-    // Simulamos pasando cotizacionCero tras la expiración en memoria:
-    // Para probar la lógica de detección, modificamos temporalmente el reloj o fechaFin:
-    await PromocionesService.actualizarPromocion(
-      promoGratis.id,
-      { fechaFin: new Date(Date.now() - 1000).toISOString() }, // ya vencida
-      1
-    );
+    // 2. Esperar 320 ms para que la promoción venza exclusivamente por el paso del tiempo,
+    // sin editar fechaFin ni modificar el registro de la promoción (A3-3-02).
+    await new Promise((resolve) => setTimeout(resolve, 320));
+
+    const promoSinEditar = await PromocionesService.obtenerPorId(promoGratis.id);
+    if (promoSinEditar.fechaFin !== tFin.toISOString()) {
+      throw new Error('fechaFin no debió ser modificada para esta prueba');
+    }
 
     let rechazoCeroEsperado = false;
     try {
@@ -395,7 +457,7 @@ async function main() {
           throw new Error(`El descuento debía ser 0.00 tras expiración, fue: ${err.detalles.nuevaCotizacion.descuentoTotal}`);
         }
         if (err.detalles.nuevaCotizacion.promocionAplicada !== null) {
-          throw new Error('La nueva cotización no debe tener promoción aplicada tras expiración');
+          throw new Error('La nueva cotización no debe tener promoción aplicada tras expiración por tiempo');
         }
       } else {
         throw err;
@@ -403,7 +465,7 @@ async function main() {
     }
 
     if (!rechazoCeroEsperado) {
-      throw new Error('FALLO A2-3-02: Se permitió confirmar la venta con total 0.00 a pesar de haber expirado la promoción');
+      throw new Error('FALLO A2-3-02: Se permitió confirmar la venta con total 0.00 a pesar de haber expirado la promoción por tiempo');
     }
   });
 
@@ -492,7 +554,7 @@ async function main() {
     const inicio = contenido.indexOf('actualizarPlatillo');
     const fragmento = contenido.slice(inicio, inicio + 4000);
 
-    const posLock = fragmento.search(/SELECT id FROM platillos WHERE id = \$1 FOR UPDATE;/i);
+    const posLock = fragmento.search(/SELECT id(?:,\s*nombre,\s*precio,\s*activo)? FROM platillos WHERE id = \$1 FOR UPDATE;/i);
     const posDelete = fragmento.search(/DELETE FROM receta_detalle/i);
 
     if (posLock === -1) {
