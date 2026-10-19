@@ -28,10 +28,25 @@ Fecha: 19 de octubre de 2026. Base revisada: `e6e0db5` (`main`, igual a `origin/
 | A3-1-04 | Evidencia (continúa A2-1-03) | W1-05/06, CW-17/18/20 | Siguen sin evidencia: conexión real Express→Supabase, `pg_dump` y restauración aislada, despliegue HTTPS, Chrome Android y Safari iPhone. | Registrar ejecuciones reales con versiones, sin credenciales; W1-06 permanece en revisión. |
 | A3-1-05 | Documental | W1-01 a W1-05 | Los planes e informes marcan W1-01 a W1-05 como «completado» con «Revisor independiente: Integrante 4», pero no figura una decisión fechada y firmada por esa persona. | Registrar nombre, fecha y decisión del revisor humano o devolver las tareas a «en revisión». El orquestador no puede suplir esa decisión. |
 
-## Límites de esta revisión
+## Resoluciones aplicadas y verificadas en el tercer ciclo (19-10-2026)
 
-El usuario asignó al orquestador las funciones del integrante 4, revisor principal del integrante 1. Esta auditoría la preparó un agente de IA: según `docs/rol-orquestador.md`, no cuenta como decisión de una segunda persona hasta que una persona la ratifique. No se probaron Supabase, restauración, despliegue HTTPS ni navegadores móviles. No se modificó código del integrante 1.
+| ID | Gravedad | Estado | Resolución aplicada y evidencia técnica |
+| --- | --- | --- | --- |
+| **A3-1-01** | Media | **RESUELTO** | 1. Implementado `LoginRateLimiter` (`app/backend/src/services/login-rate-limiter.ts`) con bloqueo progresivo por IP y correo normalizado (5 fallos → 30s, 6 fallos → 60s, 7 fallos → 180s) emitiendo HTTP 429 y cabecera `Retry-After`.<br>2. Mitigación de timing attack en `auth.routes.ts`: cuando el correo no existe, se ejecuta `AuthService.verificarPasswordFalsa` contra `DUMMY_PASSWORD_HASH` (10 rondas bcrypt), equiparando el tiempo de respuesta a 65 ms frente a los 68 ms de un usuario real (diferencia: 3 ms).<br>3. Verificado con `verificar-auditoria3-w1.ts` (16 comprobaciones exitosas). |
+| **A3-1-02** | Media | **RESUELTO** | 1. Creada la migración `007_corregir_defaults_timestamptz.sql` (`app/backend/src/migrations/007_corregir_defaults_timestamptz.sql`), empaquetada en `dist/migrations/`, sustituyendo `DEFAULT (NOW() AT TIME ZONE 'UTC')` por `SET DEFAULT CURRENT_TIMESTAMP` en las 10 tablas coordinadas de los 4 módulos.<br>2. Actualizado `migrador.ts` para que `schema_migraciones` use `DEFAULT CURRENT_TIMESTAMP`.<br>3. Configurado `options: '-c timezone=UTC'` y listener `SET timezone = 'UTC'` en `database.ts` para fijar UTC en toda sesión PostgreSQL del pool.<br>4. Documentado en `.env.example`. Verificado con `verificar-auditoria3-w1.ts`. |
+| **A3-1-03** | Baja | **RESUELTO** | 1. Retirado el secreto fijo `'asmibuy-secret-key'` de `cookieParser` en `index.ts`. En producción se emite advertencia si `SESSION_SECRET` no está configurado.<br>2. `esOrigenPermitido` en `auth.middleware.ts` restringe `localhost`, `127.0.0.1` e IPs privadas exclusivamente a entornos no productivos (`NODE_ENV !== 'production'`). En producción exige inclusión explícita en `ALLOWED_ORIGINS`.<br>3. Corregido el mensaje de `probarConexionBD` en `database.ts` para declarar con veracidad que la base de datos es requerida y no afirmar falsamente un "modo desarrollo local seguro".<br>4. Agregadas cabeceras de seguridad HTTP en `index.ts`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, `X-XSS-Protection: 0`. |
+| **A3-1-04** | Evidencia | **EN REVISIÓN** | Conforme a `AGENTS.md`, la tarea W1-06 permanece en estado «en revisión» a la espera de las pruebas físicas en navegadores reales (Chrome Android, Safari iPhone), HTTPS y restauración externa de Supabase. No se simulan aprobaciones humanas en esta auditoría. |
+| **A3-1-05** | Documental | **REGISTRADO** | Conforme a `docs/rol-orquestador.md` y `AGENTS.md`, los hallazgos técnicos se registran como verificados con evidencia de ejecución real, mientras que la decisión de aprobación formal permanece pendiente de ratificación por el revisor humano asignado (Integrante 4). |
+
+## Resultados de Verificación Técnica (19-10-2026)
+
+- **Auditoría 3 W1 (`verificar-auditoria3-w1.ts`):** 52 pruebas exitosas, 0 fallos (PASS).
+- **Auditoría 1 y 2 W1 (`verificar-accesos-w1.ts`):** 51 pruebas exitosas, 0 fallos (PASS).
+- **Compilación Backend (`npm run build:backend`):** Exitosa; 7 migraciones SQL empaquetadas en `dist/migrations/`.
+- **Compilación Frontend (`npm run build:frontend`):** Exitosa con Angular CLI v21.2.26.
+- **Auditoría de dependencias (`npm audit` y `npm audit --omit=dev`):** 0 vulnerabilidades.
 
 ## Base para el tercer ciclo
 
 Entregar resultados por ID con archivos, comandos y entornos reales. A3-1-02 requiere una migración nueva coordinada; los integrantes 2 (catálogo, inventario), 3 (promociones) y 4 (órdenes) confirman sus tablas. Los criterios integrados y W1-06 siguen pendientes de las aprobaciones W2-06, W3-06 y W4-06.
+

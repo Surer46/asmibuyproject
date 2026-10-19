@@ -43,6 +43,17 @@ export class AuthService {
     return bcrypt.compareSync(password, hash);
   }
 
+  // Hash bcrypt precomputado (10 rondas) para mitigar ataques de temporización y enumeración de cuentas
+  private static readonly DUMMY_PASSWORD_HASH = bcrypt.hashSync('asmibuy_timing_protection_dummy_hash_fixed', 10);
+
+  /**
+   * Ejecuta verificación de contraseña contra un hash ficticio para igualar el tiempo de cómputo
+   * cuando el usuario solicitado no existe en la base de datos (Mitigación A3-1-01)
+   */
+  static verificarPasswordFalsa(password: string): boolean {
+    return bcrypt.compareSync(password, AuthService.DUMMY_PASSWORD_HASH);
+  }
+
   /**
    * Genera un identificador de sesión criptográficamente seguro
    */

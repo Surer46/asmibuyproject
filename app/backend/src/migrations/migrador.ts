@@ -48,7 +48,7 @@ async function ejecutarMigraciones() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migraciones (
         nombre VARCHAR(255) PRIMARY KEY,
-        aplicado_en TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
+        aplicado_en TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 

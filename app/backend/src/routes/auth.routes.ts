@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
+import { LoginRateLimiter } from '../services/login-rate-limiter';
 import { exigirAutenticacion } from '../middlewares/auth.middleware';
 
 export const authRouter = Router();
@@ -22,6 +23,7 @@ authRouter.get('/auth/csrf', (_req: Request, res: Response) => {
 /**
  * POST /api/v1/auth/login
  * Inicia sesión, crea registro en servidor y responde con cookie HttpOnly
+ * Protegido contra ataques de fuerza bruta y análisis de temporización (A3-1-01)
  */
 authRouter.post('/auth/login', async (req: Request, res: Response) => {
   try {
@@ -35,16 +37,48 @@ authRouter.post('/auth/login', async (req: Request, res: Response) => {
       });
     }
 
-    const usuario = await AuthService.buscarPorCorreo(correo);
-    if (!usuario || !AuthService.verificarPassword(password, usuario.password_hash)) {
-      return res.status(401).json({
-        codigo: 'CREDENCIALES_INVALIDAS',
-        mensaje: 'El correo o la contraseña son incorrectos.',
-        detalles: null
+    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+
+    // 1. Verificar bloqueo por límite de intentos fallidos (Rate Limiting)
+    const estadoBloqueo = LoginRateLimiter.verificarBloqueo(ip, correo);
+    if (estadoBloqueo.bloqueado) {
+      res.setHeader('Retry-After', String(estadoBloqueo.reintentarEnSegundos));
+      return res.status(429).json({
+        codigo: 'DEMASIADOS_INTENTOS',
+        mensaje: `Demasiados intentos de acceso fallidos. Por seguridad, intente de nuevo en ${estadoBloqueo.reintentarEnSegundos} segundos.`,
+        detalles: {
+          reintentarEnSegundos: estadoBloqueo.reintentarEnSegundos
+        }
       });
     }
 
+    // 2. Buscar usuario
+    const usuario = await AuthService.buscarPorCorreo(correo);
+
+    // 3. Mitigación de timing attack: si el usuario no existe, se calcula bcrypt con un hash ficticio
+    let passwordValida = false;
+    if (usuario) {
+      passwordValida = AuthService.verificarPassword(password, usuario.password_hash);
+    } else {
+      AuthService.verificarPasswordFalsa(password);
+    }
+
+    // 4. Si credenciales son incorrectas (no existe usuario o contraseña no coincide)
+    if (!usuario || !passwordValida) {
+      const penalizacion = LoginRateLimiter.registrarFallo(ip, correo);
+      if (penalizacion.bloqueado) {
+        res.setHeader('Retry-After', String(penalizacion.reintentarEnSegundos));
+      }
+      return res.status(401).json({
+        codigo: 'CREDENCIALES_INVALIDAS',
+        mensaje: 'El correo o la contraseña son incorrectos.',
+        detalles: penalizacion.bloqueado ? { reintentarEnSegundos: penalizacion.reintentarEnSegundos } : null
+      });
+    }
+
+    // 5. Verificar si la cuenta nominal está activa
     if (!usuario.activo) {
+      LoginRateLimiter.registrarFallo(ip, correo);
       return res.status(403).json({
         codigo: 'CUENTA_DESACTIVADA',
         mensaje: 'Esta cuenta ha sido desactivada por el administrador.',
@@ -52,8 +86,11 @@ authRouter.post('/auth/login', async (req: Request, res: Response) => {
       });
     }
 
+    // 6. Éxito: Limpiar historial de intentos fallidos para esta IP y correo
+    LoginRateLimiter.limpiarExito(ip, correo);
+
     // Crear sesión en servidor (8 horas)
-    const { token } = await AuthService.crearSesion(usuario.id, req.ip);
+    const { token } = await AuthService.crearSesion(usuario.id, ip);
 
     // Generar token CSRF para esta sesión
     const csrfToken = AuthService.generarTokenCSRF();

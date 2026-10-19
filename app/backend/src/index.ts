@@ -16,6 +16,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Cabeceras HTTP de seguridad básicas (A3-1-03)
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-XSS-Protection', '0');
+  next();
+});
+
 // Middlewares estándar con restricción de orígenes permitidos
 app.use(cors({
   origin: (origin, callback) => {
@@ -28,7 +38,12 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(cookieParser(process.env.SESSION_SECRET || 'asmibuy-secret-key'));
+
+// Cookie parser sin secreto quemado por defecto (A3-1-03)
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  console.warn('⚠️ [Seguridad]: SESSION_SECRET no configurado en entorno de producción.');
+}
+app.use(cookieParser(process.env.SESSION_SECRET || undefined));
 
 // Middleware de sesión automática desde cookie
 app.use(verificarSesion);

@@ -18,10 +18,18 @@ export function esOrigenPermitido(origin?: string): boolean {
     const parsed = new URL(origin);
     const host = parsed.hostname;
 
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return true;
+    // En desarrollo o pruebas, permitir loopback local y rangos IP privados automáticamente
+    if (process.env.NODE_ENV !== 'production') {
+      if (host === 'localhost' || host === '127.0.0.1') {
+        return true;
+      }
+      const esIpPrivada = /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$/.test(host);
+      if (esIpPrivada) {
+        return true;
+      }
     }
 
+    // En producción (y como regla general), solo se admiten orígenes explícitamente configurados
     const origenesTexto = process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGIN || '';
     const origenesConfigurados = origenesTexto
       .split(',')
@@ -29,13 +37,6 @@ export function esOrigenPermitido(origin?: string): boolean {
       .filter(Boolean);
     if (origenesConfigurados.includes(origin) || origenesConfigurados.includes(parsed.origin)) {
       return true;
-    }
-
-    if (process.env.NODE_ENV !== 'production') {
-      const esIpPrivada = /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$/.test(host);
-      if (esIpPrivada) {
-        return true;
-      }
     }
 
     return false;

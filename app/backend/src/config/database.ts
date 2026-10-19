@@ -30,12 +30,22 @@ function obtenerConfiguracionSSL(): boolean | { rejectUnauthorized: boolean; ca?
 }
 
 // Configuración de pool con límites de Supabase Free (5-10 conexiones máximo)
+// Se fija explícitamente TimeZone=UTC en la conexión para garantizar consistencia absoluta
+// independiente de la zona horaria del host o del cliente (A3-1-02)
 export const pool = new Pool({
   connectionString: connectionString || undefined,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  ssl: obtenerConfiguracionSSL()
+  ssl: obtenerConfiguracionSSL(),
+  options: '-c timezone=UTC'
+});
+
+pool.on('connect', (client) => {
+  // Garantizar TimeZone UTC a nivel de sesión en cada nueva conexión establecida
+  client.query("SET timezone = 'UTC'").catch((err) => {
+    console.error('⚠️ [PostgreSQL]: Error al establecer TimeZone UTC en conexión:', err.message);
+  });
 });
 
 pool.on('error', (err) => {
@@ -49,7 +59,7 @@ export async function probarConexionBD(): Promise<{ conectada: boolean; detalle:
   if (!connectionString) {
     return {
       conectada: false,
-      detalle: 'DATABASE_URL no configurada. Operando en modo desarrollo local seguro.'
+      detalle: 'DATABASE_URL no configurada. Conexión a base de datos requerida para autenticación y persistencia.'
     };
   }
   try {

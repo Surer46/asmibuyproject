@@ -85,7 +85,8 @@ async function probarHashSesionesYRevocacion() {
   assert(resVal.valida === true && resVal.usuario?.id === 10, 'Sesión validada exitosamente mediante token hash');
 
   // Intentar validar con token manipulado
-  const resValFalsa = await AuthService.validarSesion(token.replace('a', 'b'));
+  const tokenManipulado = (token[0] === 'a' ? 'b' : 'a') + token.slice(1);
+  const resValFalsa = await AuthService.validarSesion(tokenManipulado);
   assert(resValFalsa.valida === false, 'Token manipulado es rechazado');
 
   // Revocar sesión
