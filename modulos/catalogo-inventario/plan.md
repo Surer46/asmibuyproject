@@ -2,7 +2,7 @@
 
 ## Catálogo e inventario
 
-Versión 2.1. Estado: pendiente. Responsable personal: por asignar. Revisor principal: integrante 1.
+Versión 2.1. Estado: en revisión. Responsable personal: Integrante 2. Revisor principal: integrante 1. Revisor adicional: integrante 4.
 
 Ingredientes, platillos, recetas, existencias, movimientos, consumo y alertas dentro de la web.
 

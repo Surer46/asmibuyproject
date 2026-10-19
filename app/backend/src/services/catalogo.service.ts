@@ -389,44 +389,126 @@ export class CatalogoService {
    * Actualiza un ingrediente respetando la inmutabilidad de la unidad si tiene historial
    */
   static async actualizarIngrediente(id: number, input: ActualizarIngredienteInput): Promise<IngredienteDTO> {
+    if (input.nombre !== undefined && !input.nombre.trim()) {
+      throw new ErrorCatalogo('DATOS_INVALIDOS', 'El nombre del ingrediente no puede estar vacío.');
+    }
+
+    if (input.unidad !== undefined) {
+      const unidadesValidas: UnidadIngrediente[] = ['g', 'ml', 'pieza'];
+      if (!unidadesValidas.includes(input.unidad)) {
+        throw new ErrorCatalogo('DATOS_INVALIDOS', "La unidad debe ser 'g', 'ml' o 'pieza'.");
+      }
+    }
+
+    if (process.env.DATABASE_URL) {
+      return await ejecutarTransaccion(async (client: PoolClient) => {
+        // A3-2-02: Bloqueo explícito FOR UPDATE dentro de la transacción para serializar
+        // comprobaciones de inmutabilidad de unidad y recetas activas
+        const lockRes = await client.query(
+          'SELECT id, nombre, unidad, minimo, activo FROM ingredientes WHERE id = $1 FOR UPDATE;',
+          [id]
+        );
+        if (lockRes.rows.length === 0) {
+          throw new ErrorCatalogo('RECURSO_NO_ENCONTRADO', 'El ingrediente no existe.', 404);
+        }
+
+        const actual = lockRes.rows[0];
+        const nuevoNombre = input.nombre !== undefined ? input.nombre.trim() : actual.nombre;
+        if (!nuevoNombre) {
+          throw new ErrorCatalogo('DATOS_INVALIDOS', 'El nombre del ingrediente no puede estar vacío.');
+        }
+
+        const nuevaUnidad = input.unidad !== undefined ? input.unidad : (actual.unidad as UnidadIngrediente);
+        const unidadesValidas: UnidadIngrediente[] = ['g', 'ml', 'pieza'];
+        if (!unidadesValidas.includes(nuevaUnidad)) {
+          throw new ErrorCatalogo('DATOS_INVALIDOS', "La unidad debe ser 'g', 'ml' o 'pieza'.");
+        }
+
+        // Regla de inmutabilidad de la unidad con el mismo cliente transaccional
+        if (nuevaUnidad !== actual.unidad) {
+          const referenciasRecetas = await client.query('SELECT COUNT(*) FROM receta_detalle WHERE ingrediente_id = $1', [id]);
+          const referenciasMovimientos = await client.query('SELECT COUNT(*) FROM movimientos_inventario WHERE ingrediente_id = $1', [id]);
+          const totalReferencias = parseInt(referenciasRecetas.rows[0].count, 10) + parseInt(referenciasMovimientos.rows[0].count, 10);
+          if (totalReferencias > 0) {
+            throw new ErrorCatalogo(
+              'UNIDAD_INMUTABLE',
+              'No se puede cambiar la unidad de un ingrediente que ya está referenciado en recetas o movimientos de inventario.'
+            );
+          }
+        }
+
+        let nuevoMinimoDec: Decimal;
+        if (input.minimo !== undefined) {
+          nuevoMinimoDec = this.validarCantidadPorUnidad(input.minimo, nuevaUnidad, 'cantidad mínima');
+        } else {
+          nuevoMinimoDec = this.validarCantidadPorUnidad(actual.minimo, nuevaUnidad, 'cantidad mínima');
+        }
+
+        const nuevoActivo = input.activo !== undefined ? input.activo : actual.activo;
+
+        // Si se intenta desactivar el ingrediente, verificar platillos activos bloqueando sus filas en orden
+        if (actual.activo && nuevoActivo === false) {
+          const platillosUso = await client.query(
+            `SELECT p.id, p.nombre 
+             FROM platillos p 
+             JOIN receta_detalle r ON p.id = r.platillo_id 
+             WHERE r.ingrediente_id = $1 AND p.activo = TRUE
+             ORDER BY p.id ASC
+             FOR SHARE OF p`,
+            [id]
+          );
+          if (platillosUso.rows.length > 0) {
+            const nombres = platillosUso.rows.map((r: any) => `"${r.nombre}"`).join(', ');
+            throw new ErrorCatalogo(
+              'INGREDIENTE_EN_USO',
+              `No se puede desactivar el ingrediente porque se usa en los siguientes platillos activos: ${nombres}. Desactiva o actualiza primero los platillos.`
+            );
+          }
+        }
+
+        try {
+          const updateQuery = `
+            UPDATE ingredientes
+            SET nombre = $1, unidad = $2, minimo = $3, activo = $4, actualizado_en = CURRENT_TIMESTAMP
+            WHERE id = $5
+            RETURNING id, nombre, unidad, minimo, activo;
+          `;
+          await client.query(updateQuery, [nuevoNombre, nuevaUnidad, nuevoMinimoDec.toString(), nuevoActivo, id]);
+          return (await this.obtenerIngredientePorId(id, client))!;
+        } catch (error: any) {
+          if (error.code === '23505') {
+            throw new ErrorCatalogo('DATOS_INVALIDOS', `Ya existe un ingrediente registrado con el nombre "${nuevoNombre}".`);
+          }
+          throw error;
+        }
+      });
+    }
+
+    // Memoria aislada
     const actual = await this.obtenerIngredientePorId(id);
     if (!actual) {
       throw new ErrorCatalogo('RECURSO_NO_ENCONTRADO', 'El ingrediente no existe.', 404);
     }
 
-    let nuevoNombre = input.nombre !== undefined ? input.nombre.trim() : actual.nombre;
+    const nuevoNombre = input.nombre !== undefined ? input.nombre.trim() : actual.nombre;
     if (!nuevoNombre) {
       throw new ErrorCatalogo('DATOS_INVALIDOS', 'El nombre del ingrediente no puede estar vacío.');
     }
 
-    let nuevaUnidad = input.unidad !== undefined ? input.unidad : actual.unidad;
+    const nuevaUnidad = input.unidad !== undefined ? input.unidad : actual.unidad;
     const unidadesValidas: UnidadIngrediente[] = ['g', 'ml', 'pieza'];
     if (!unidadesValidas.includes(nuevaUnidad)) {
       throw new ErrorCatalogo('DATOS_INVALIDOS', "La unidad debe ser 'g', 'ml' o 'pieza'.");
     }
 
-    // Regla de inmutabilidad de la unidad
     if (nuevaUnidad !== actual.unidad) {
-      if (process.env.DATABASE_URL) {
-        const referenciasRecetas = await pool.query('SELECT COUNT(*) FROM receta_detalle WHERE ingrediente_id = $1', [id]);
-        const referenciasMovimientos = await pool.query('SELECT COUNT(*) FROM movimientos_inventario WHERE ingrediente_id = $1', [id]);
-        const totalReferencias = parseInt(referenciasRecetas.rows[0].count, 10) + parseInt(referenciasMovimientos.rows[0].count, 10);
-        if (totalReferencias > 0) {
-          throw new ErrorCatalogo(
-            'UNIDAD_INMUTABLE',
-            'No se puede cambiar la unidad de un ingrediente que ya está referenciado en recetas o movimientos de inventario.'
-          );
-        }
-      } else {
-        // Validación en memoria
-        const tieneRecetas = almacenMemoria.recetas.some((r) => r.ingredienteId === id);
-        const tieneMovimientos = movimientosMemoria.some((m) => m.ingredienteId === id);
-        if (tieneRecetas || tieneMovimientos) {
-          throw new ErrorCatalogo(
-            'UNIDAD_INMUTABLE',
-            'No se puede cambiar la unidad de un ingrediente que ya está referenciado en recetas o movimientos de inventario.'
-          );
-        }
+      const tieneRecetas = almacenMemoria.recetas.some((r) => r.ingredienteId === id);
+      const tieneMovimientos = movimientosMemoria.some((m) => m.ingredienteId === id);
+      if (tieneRecetas || tieneMovimientos) {
+        throw new ErrorCatalogo(
+          'UNIDAD_INMUTABLE',
+          'No se puede cambiar la unidad de un ingrediente que ya está referenciado en recetas o movimientos de inventario.'
+        );
       }
     }
 
@@ -437,61 +519,23 @@ export class CatalogoService {
       nuevoMinimoDec = this.validarCantidadPorUnidad(actual.minimo, nuevaUnidad, 'cantidad mínima');
     }
 
-    let nuevoActivo = input.activo !== undefined ? input.activo : actual.activo;
+    const nuevoActivo = input.activo !== undefined ? input.activo : actual.activo;
 
-    // Si se intenta desactivar el ingrediente, verificar si platillos activos lo usan
     if (actual.activo && nuevoActivo === false) {
-      if (process.env.DATABASE_URL) {
-        const platillosUso = await pool.query(
-          `SELECT p.nombre 
-           FROM platillos p 
-           JOIN receta_detalle r ON p.id = r.platillo_id 
-           WHERE r.ingrediente_id = $1 AND p.activo = TRUE`,
-          [id]
+      const platillosActivosConIng = almacenMemoria.recetas
+        .filter((r) => r.ingredienteId === id)
+        .map((r) => platillosMemoria.find((p) => p.id === r.platilloId))
+        .filter((p) => p && p.activo);
+
+      if (platillosActivosConIng.length > 0) {
+        const nombres = platillosActivosConIng.map((p) => `"${p!.nombre}"`).join(', ');
+        throw new ErrorCatalogo(
+          'INGREDIENTE_EN_USO',
+          `No se puede desactivar el ingrediente porque se usa en los siguientes platillos activos: ${nombres}. Desactiva o actualiza primero los platillos.`
         );
-        if (platillosUso.rows.length > 0) {
-          const nombres = platillosUso.rows.map((r) => `"${r.nombre}"`).join(', ');
-          throw new ErrorCatalogo(
-            'INGREDIENTE_EN_USO',
-            `No se puede desactivar el ingrediente porque se usa en los siguientes platillos activos: ${nombres}. Desactiva o actualiza primero los platillos.`
-          );
-        }
-      } else {
-        // Validación en memoria
-        const platillosActivosConIng = almacenMemoria.recetas
-          .filter((r) => r.ingredienteId === id)
-          .map((r) => platillosMemoria.find((p) => p.id === r.platilloId))
-          .filter((p) => p && p.activo);
-
-        if (platillosActivosConIng.length > 0) {
-          const nombres = platillosActivosConIng.map((p) => `"${p!.nombre}"`).join(', ');
-          throw new ErrorCatalogo(
-            'INGREDIENTE_EN_USO',
-            `No se puede desactivar el ingrediente porque se usa en los siguientes platillos activos: ${nombres}. Desactiva o actualiza primero los platillos.`
-          );
-        }
       }
     }
 
-    if (process.env.DATABASE_URL) {
-      try {
-        const updateQuery = `
-          UPDATE ingredientes
-          SET nombre = $1, unidad = $2, minimo = $3, activo = $4, actualizado_en = CURRENT_TIMESTAMP
-          WHERE id = $5
-          RETURNING id, nombre, unidad, minimo, activo;
-        `;
-        await pool.query(updateQuery, [nuevoNombre, nuevaUnidad, nuevoMinimoDec.toString(), nuevoActivo, id]);
-        return (await this.obtenerIngredientePorId(id))!;
-      } catch (error: any) {
-        if (error.code === '23505') {
-          throw new ErrorCatalogo('DATOS_INVALIDOS', `Ya existe un ingrediente registrado con el nombre "${nuevoNombre}".`);
-        }
-        throw error;
-      }
-    }
-
-    // Memoria aislada
     const index = ingredientesMemoria.findIndex((i) => i.id === id);
     if (index !== -1) {
       if (ingredientesMemoria.some((i) => i.id !== id && i.nombre.toLowerCase() === nuevoNombre.toLowerCase())) {
@@ -807,42 +851,49 @@ export class CatalogoService {
    * IMPORTANTE: No modifica existencias en movimientos_inventario.
    */
   static async actualizarPlatillo(id: number, input: ActualizarPlatilloInput): Promise<PlatilloDTO> {
-    const actual = await this.obtenerPlatilloPorId(id);
-    if (!actual) {
-      throw new ErrorCatalogo('RECURSO_NO_ENCONTRADO', 'El platillo no existe.', 404);
-    }
-
-    let nuevoNombre = input.nombre !== undefined ? input.nombre.trim() : actual.nombre;
-    if (!nuevoNombre) {
+    if (input.nombre !== undefined && !input.nombre.trim()) {
       throw new ErrorCatalogo('DATOS_INVALIDOS', 'El nombre del platillo no puede estar vacío.');
     }
 
-    let nuevoPrecioDec = actual.precio ? new Decimal(actual.precio) : new Decimal(0);
-    if (input.precio !== undefined) {
-      nuevoPrecioDec = validarNumeroDecimal(input.precio, 'precio del platillo', {
-        positivo: true,
-        escalaMax: 2,
-        max: 99999999.99,
-        codigoError: 'DATOS_INVALIDOS'
-      });
-    }
-
-    let nuevoActivo = input.activo !== undefined ? input.activo : actual.activo;
-
     if (process.env.DATABASE_URL) {
       return await ejecutarTransaccion(async (client: PoolClient) => {
-        // A2-2-02: Adquirir FOR UPDATE en el platillo al inicio de la transacción,
-        // antes de modificar receta_detalle. Esto serializa la edición con cualquier
-        // transacción de venta concurrente que tenga FOR SHARE sobre el mismo platillo,
-        // garantizando que la cotización aceptada sea consistente con la receta que
-        // se va a persistir. El bloqueo se libera al COMMIT/ROLLBACK.
+        // A2-2-02 / A3-2-01 / A3-2-04: Adquirir FOR UPDATE en el platillo al inicio de la transacción
+        // y leer los valores actuales con el mismo cliente bajo el bloqueo.
+        // Esto previene que una actualización parcial (ej. solo receta) sobrescriba
+        // un cambio concurrente de precio o nombre con datos desactualizados (A3-2-01),
+        // y serializa la edición de receta con ventas concurrentes siguiendo el protocolo
+        // unificado del sistema:
+        // 1. platillos ORDER BY id ASC FOR UPDATE (bloqueo exclusivo mutuo entre venta y edición)
+        // 2. promociones ORDER BY pr.id ASC FOR SHARE OF pr
+        // 3. ingredientes ORDER BY id ASC FOR UPDATE
         const lockRes = await client.query(
-          'SELECT id FROM platillos WHERE id = $1 FOR UPDATE;',
+          'SELECT id, nombre, precio, activo FROM platillos WHERE id = $1 FOR UPDATE;',
           [id]
         );
         if (lockRes.rows.length === 0) {
           throw new ErrorCatalogo('RECURSO_NO_ENCONTRADO', `El platillo con ID ${id} no existe.`, 404);
         }
+
+        const actual = lockRes.rows[0];
+
+        const nuevoNombre = input.nombre !== undefined ? input.nombre.trim() : actual.nombre;
+        if (!nuevoNombre) {
+          throw new ErrorCatalogo('DATOS_INVALIDOS', 'El nombre del platillo no puede estar vacío.');
+        }
+
+        let nuevoPrecioDec: Decimal;
+        if (input.precio !== undefined) {
+          nuevoPrecioDec = validarNumeroDecimal(input.precio, 'precio del platillo', {
+            positivo: true,
+            escalaMax: 2,
+            max: 99999999.99,
+            codigoError: 'DATOS_INVALIDOS'
+          });
+        } else {
+          nuevoPrecioDec = new Decimal(actual.precio);
+        }
+
+        const nuevoActivo = input.activo !== undefined ? input.activo : actual.activo;
 
         if (input.receta !== undefined) {
           if (nuevoActivo && (!Array.isArray(input.receta) || input.receta.length === 0)) {
@@ -885,17 +936,40 @@ export class CatalogoService {
 
     // Memoria aislada
     const pIndex = platillosMemoria.findIndex((p) => p.id === id);
-    if (pIndex !== -1) {
-      if (platillosMemoria.some((p) => p.id !== id && p.nombre.toLowerCase() === nuevoNombre.toLowerCase())) {
-        throw new ErrorCatalogo('DATOS_INVALIDOS', `Ya existe un platillo registrado con el nombre "${nuevoNombre}".`);
-      }
-      platillosMemoria[pIndex].nombre = nuevoNombre;
-      platillosMemoria[pIndex].precio = nuevoPrecioDec;
-      platillosMemoria[pIndex].activo = nuevoActivo;
+    if (pIndex === -1) {
+      throw new ErrorCatalogo('RECURSO_NO_ENCONTRADO', 'El platillo no existe.', 404);
     }
 
+    const actualMem = platillosMemoria[pIndex];
+    const nuevoNombreMem = input.nombre !== undefined ? input.nombre.trim() : actualMem.nombre;
+    if (!nuevoNombreMem) {
+      throw new ErrorCatalogo('DATOS_INVALIDOS', 'El nombre del platillo no puede estar vacío.');
+    }
+
+    let nuevoPrecioMemDec: Decimal;
+    if (input.precio !== undefined) {
+      nuevoPrecioMemDec = validarNumeroDecimal(input.precio, 'precio del platillo', {
+        positivo: true,
+        escalaMax: 2,
+        max: 99999999.99,
+        codigoError: 'DATOS_INVALIDOS'
+      });
+    } else {
+      nuevoPrecioMemDec = actualMem.precio;
+    }
+
+    const nuevoActivoMem = input.activo !== undefined ? input.activo : actualMem.activo;
+
+    if (platillosMemoria.some((p) => p.id !== id && p.nombre.toLowerCase() === nuevoNombreMem.toLowerCase())) {
+      throw new ErrorCatalogo('DATOS_INVALIDOS', `Ya existe un platillo registrado con el nombre "${nuevoNombreMem}".`);
+    }
+
+    platillosMemoria[pIndex].nombre = nuevoNombreMem;
+    platillosMemoria[pIndex].precio = nuevoPrecioMemDec;
+    platillosMemoria[pIndex].activo = nuevoActivoMem;
+
     if (input.receta !== undefined) {
-      if (nuevoActivo && (!Array.isArray(input.receta) || input.receta.length === 0)) {
+      if (nuevoActivoMem && (!Array.isArray(input.receta) || input.receta.length === 0)) {
         throw new ErrorCatalogo('RECETA_INVALIDA', 'Un platillo activo debe tener al menos un ingrediente en su receta.');
       }
 

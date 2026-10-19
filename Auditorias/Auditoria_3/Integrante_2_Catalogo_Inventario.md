@@ -30,3 +30,30 @@ Fecha: 19 de octubre de 2026. Base revisada: `e6e0db5`. Alcance: W2-01 a W2-06, 
 ## Límites
 
 Las conclusiones de PostgreSQL son de una base local desechable, no de Supabase. A3-2-02 es un hallazgo de revisión de código. La revisión del integrante 4 la preparó un agente de IA y requiere ratificación humana. No se modificó código del integrante 2.
+
+---
+
+## Resolución de pendientes de Auditoría 3 por el Integrante 2
+
+Fecha de resolución: 19 de octubre de 2026. Estado: **correcciones técnicas implementadas y verificadas con 144 pruebas automatizadas (0 fallos)**.
+
+| ID | Gravedad | Estado | Solución implementada y evidencia técnica |
+| --- | --- | --- | --- |
+| **A3-2-01** | Alta | **Resuelto** | En `CatalogoService.actualizarPlatillo` (`catalogo.service.ts`), se eliminó la lectura externa stale previa a la transacción. Ahora se ejecuta `SELECT id, nombre, precio, activo FROM platillos WHERE id = $1 FOR UPDATE;` dentro de `ejecutarTransaccion` al inicio del flujo, y se leen los valores frescos de la fila bloqueada con el mismo cliente (`client`). Si la solicitud omite campos (por ejemplo, actualizando únicamente la receta), se preservan los valores actuales bajo el bloqueo (`actual.precio`, `actual.nombre`, `actual.activo`) en lugar de sobrescribirlos con datos desactualizados leídos antes de adquirir la exclusión. |
+| **A3-2-02** | Media | **Resuelto** | En `CatalogoService.actualizarIngrediente` (`catalogo.service.ts`), toda la verificación y actualización se encapsuló en `ejecutarTransaccion`. Se adquiere `SELECT id, nombre, unidad, minimo, activo FROM ingredientes WHERE id = $1 FOR UPDATE;` al inicio. La verificación de inmutabilidad de unidad (`receta_detalle` y `movimientos_inventario`) y la verificación de platillos activos (`FOR SHARE OF p`) se realizan con el cliente transaccional exclusivo, garantizando atomicidad y eliminando condiciones de carrera. |
+| **A3-2-03** | Media (coordinada con A3-1-02) | **Resuelto** | En `InventarioService` (`inventario.service.ts`), se sustituyó `NOW() AT TIME ZONE 'UTC'` por `CURRENT_TIMESTAMP` en las inserciones de `movimientos_inventario` en `registrarEntrada`, `registrarAjuste` y `descontarInventarioPorVenta`. Esto previene el desfase de 6 horas que ocurría al insertar una marca de tiempo sin zona horaria en una columna `timestamptz` cuando la sesión opera bajo `America/Mexico_City`, alineándose con la migración 007. |
+| **A3-2-04** | Baja (documental) | **Resuelto** | Se unificaron los comentarios en `inventario.service.ts` y `catalogo.service.ts`, así como el contrato público [`docs/contratos/02-catalogo-inventario.md`](docs/contratos/02-catalogo-inventario.md) y el plan de trabajo [`modulos/catalogo-inventario/plan.md`](modulos/catalogo-inventario/plan.md). Se documentó el protocolo unificado global del sistema: (1) Platillos `ORDER BY id ASC FOR UPDATE`, (2) Promociones `ORDER BY pr.id ASC FOR SHARE OF pr`, (3) Ingredientes `ORDER BY id ASC FOR UPDATE`. El encabezado de `plan.md` se actualizó reflejando `Estado: en revisión`, `Responsable personal: Integrante 2`, `Revisor principal: integrante 1` y `Revisor adicional: integrante 4`. |
+| **A3-2-05** | Evidencia (continúa A2-2-03) | **En seguimiento / En revisión** | Se mantuvo la arquitectura visual Cupertino, contraste >= 4.5:1, objetivos táctiles >= 44x44 px y navegación semántica en las pantallas de Catálogo e Inventario. Se diseñó la suite automatizada `app/backend/src/scripts/verificar-auditoria3-w2.ts` con 17/17 comprobaciones aprobadas. Las tareas W2-01 a W2-06 continúan en estado **en revisión** supeditadas a la ratificación de los revisores humanos independientes (integrantes 1 y 4) y la validación en dispositivos físicos. |
+
+### Batería de pruebas automatizadas del Integrante 2 ejecutadas y aprobadas:
+
+1. `node app/backend/dist/scripts/verificar-catalogo-w2-02.js` → **22/22 exitosas**
+2. `node app/backend/dist/scripts/verificar-inventario-w2-03.js` → **28/28 exitosas**
+3. `node app/backend/dist/scripts/verificar-minimos-avisos-w2-05.js` → **23/23 exitosas**
+4. `node app/backend/dist/scripts/verificar-inventario-integrado-w2-06.js` → **14/14 exitosas**
+5. `node app/backend/dist/scripts/verificar-auditoria1-w2.js` → **26/26 exitosas**
+6. `node app/backend/dist/scripts/verificar-auditoria2-w2.js` → **14/14 exitosas**
+7. `node app/backend/dist/scripts/verificar-auditoria3-w2.js` → **17/17 exitosas**
+
+**Total pruebas Integrante 2: 144/144 aprobadas (0 fallos).**
+

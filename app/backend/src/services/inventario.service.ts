@@ -84,7 +84,7 @@ export class InventarioService {
       // Consulta directa a PostgreSQL sin fallback silencioso a memoria
       const query = `
         INSERT INTO movimientos_inventario (ingrediente_id, tipo, cantidad, motivo, usuario_id, creado_en)
-        VALUES ($1, 'ENTRADA', $2, $3, $4, NOW() AT TIME ZONE 'UTC')
+        VALUES ($1, 'ENTRADA', $2, $3, $4, CURRENT_TIMESTAMP)
         RETURNING id, ingrediente_id, tipo, cantidad, motivo, usuario_id, orden_id, creado_en;
       `;
       const { rows } = await pool.query(query, [input.ingredienteId, cantidadDec.toString(), motivo, input.usuarioId]);
@@ -190,7 +190,7 @@ export class InventarioService {
         // 3. Insertar el movimiento con el mismo cliente
         const insertQuery = `
           INSERT INTO movimientos_inventario (ingrediente_id, tipo, cantidad, motivo, usuario_id, creado_en)
-          VALUES ($1, 'AJUSTE', $2, $3, $4, NOW() AT TIME ZONE 'UTC')
+          VALUES ($1, 'AJUSTE', $2, $3, $4, CURRENT_TIMESTAMP)
           RETURNING id, ingrediente_id, tipo, cantidad, motivo, usuario_id, orden_id, creado_en;
         `;
         const { rows } = await client.query(insertQuery, [input.ingredienteId, cantidadDec.toString(), motivo, input.usuarioId]);
@@ -391,14 +391,14 @@ export class InventarioService {
 
     if (process.env.DATABASE_URL && client) {
       // 1. Leer los platillos en orden determinista dentro de la transacción.
-      // NOTA A2-2-01: La transacción de venta ya adquirió FOR SHARE sobre estos
-      // platillos mediante PromocionesService.validarConsistenciaCotizacion.
-      // Escalar a FOR UPDATE desde FOR SHARE provoca deadlock 40P01 cuando dos
-      // ventas del mismo platillo se procesan en paralelo. La lectura simple aquí
-      // es suficiente: el FOR SHARE evita que la receta se modifique concurrentemente
-      // (actualizarPlatillo ahora adquiere FOR UPDATE antes de tocar receta_detalle),
-      // y el FOR UPDATE sobre ingredientes (paso 3) es el bloqueo determinante
-      // para proteger el stock.
+      // NOTA A3-2-04: Protocolo de bloqueo unificado del sistema:
+      // - Paso 1 (Ventas/Promociones): platillos ORDER BY id ASC FOR UPDATE
+      // - Paso 2 (Promociones): promociones ORDER BY pr.id ASC FOR SHARE OF pr
+      // - Paso 3 (Inventario): ingredientes ORDER BY id ASC FOR UPDATE
+      // La transacción de venta ya adquirió FOR UPDATE sobre estos platillos
+      // mediante PromocionesService.validarConsistenciaCotizacion.
+      // La lectura aquí es consistente bajo el mismo cliente transaccional y no solicita
+      // bloqueos redundantes; el paso 3 adquiere de forma ordenada y exclusiva FOR UPDATE sobre ingredientes.
       const platilloIds = Array.from(new Set(items.map((i) => i.platilloId))).sort((a, b) => a - b);
 
       const platillosBloqueadosRes = await client.query(
@@ -527,7 +527,7 @@ export class InventarioService {
 
         await client.query(
           `INSERT INTO movimientos_inventario (ingrediente_id, tipo, cantidad, motivo, usuario_id, orden_id, creado_en)
-           VALUES ($1, 'CONSUMO_VENTA', $2, $3, $4, $5, NOW() AT TIME ZONE 'UTC');`,
+           VALUES ($1, 'CONSUMO_VENTA', $2, $3, $4, $5, CURRENT_TIMESTAMP);`,
           [ingId, cantNegativa.toString(), motivo, usuarioId, ordenId]
         );
       }

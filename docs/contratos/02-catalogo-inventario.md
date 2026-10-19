@@ -1,8 +1,12 @@
 # Contrato de Catálogo e Inventario (Integrante 2)
 
-> Coordinación A2 propuesta (15-10-2026), pendiente de revisión de 2/3/1: editar una receta bloquea primero su platillo `FOR UPDATE`, antes del DELETE/INSERT de detalle. Cotización/confirmación usa esa misma exclusión ordenada y deriva `recetaHuella` mediante `obtenerPlatilloPorId(id, clienteDb)`. Consumo mantiene la misma API y bloqueos ascendentes de ingredientes; no hay conversión SHARE→UPDATE de platillos. Ver adenda de [Ventas](04-ventas-reportes.md).
+> Protocolo acordado unificado (Auditoría 3, 19-10-2026): el protocolo global de bloqueos ordenados en PostgreSQL para operaciones concurrentes es:
+> 1. `platillos`: `SELECT ... FROM platillos WHERE id = ANY($1) ORDER BY id ASC FOR UPDATE;` (adquirido en confirmación/revalidación de cotización por PromocionesService/VentasService, o en `actualizarPlatillo` al inicio antes de modificar `receta_detalle`).
+> 2. `promociones`: `SELECT ... FROM promociones pr WHERE ... ORDER BY pr.id ASC FOR SHARE OF pr;` (adquirido por PromocionesService).
+> 3. `ingredientes`: `SELECT id, nombre, unidad, activo FROM ingredientes WHERE id = ANY($1) ORDER BY id ASC FOR UPDATE;` (adquirido por InventarioService en `descontarInventarioPorVenta`, o en `actualizarIngrediente`).
+> Al mantener este orden determinista estricto (platillos -> promociones -> ingredientes) se eliminan conversiones incompatibles y deadlocks (40P01).
 **Versión:** 2.1  
-**Fecha:** 28 de septiembre de 2026  
+**Fecha:** 19 de octubre de 2026  
 **Autor:** Integrante 2 (Catálogo e Inventario)  
 **Revisor Principal:** Integrante 1 (Base Web y Acceso)  
 **Revisores Adicionales:** Integrante 4 (Consumo y Transacciones) e Integrante 3 (Cotización y Catálogo)
@@ -198,11 +202,13 @@ export async function descontarInventarioPorVenta(
    * Se agrupa la demanda total por `ingrediente_id` sumando los requerimientos de platillos repetidos o combinados en la misma orden.
 
 2. **Bloqueo Estable de Filas (Prevención de Deadlocks):**
-   * Se obtienen los IDs únicos de ingredientes requeridos ordenados ascendentemente: `const idsOrdenados = [...ingredienteIds].sort((a, b) => a - b);`.
-   * Se ejecuta el bloqueo FOR UPDATE en dicho orden estable:
+   * En la transacción global de confirmación de venta, los platillos ya han sido bloqueados previamente mediante `SELECT ... FROM platillos WHERE id = ANY($1) ORDER BY id ASC FOR UPDATE;` en `PromocionesService.validarConsistenciaCotizacion`.
+   * A continuación, se obtienen los IDs únicos de ingredientes requeridos ordenados ascendentemente: `const idsOrdenados = [...ingredienteIds].sort((a, b) => a - b);`.
+   * Se ejecuta el bloqueo FOR UPDATE sobre ingredientes en dicho orden determinista:
      ```sql
-     SELECT id, minimo, activo FROM ingredientes WHERE id = ANY($1) ORDER BY id FOR UPDATE;
+     SELECT id, nombre, unidad, activo FROM ingredientes WHERE id = ANY($1) ORDER BY id FOR UPDATE;
      ```
+   * Al seguir estrictamente el orden jerárquico Platillos (FOR UPDATE ASC) -> Promociones (FOR SHARE OF pr ASC) -> Ingredientes (FOR UPDATE ASC), se previenen bloqueos cruzados y deadlocks 40P01 entre ventas concurrentes y entre ventas y ediciones de recetas.
 
 3. **Verificación de Insumos Activos y Recetas Válidas:**
    * Si cualquier ingrediente requerido está inactivo (`activo = FALSE`), se lanza error `INGREDIENTE_INACTIVO`.
