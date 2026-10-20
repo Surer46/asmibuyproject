@@ -1,6 +1,7 @@
 /** Regresión A2-4. Solo PostgreSQL local desechable, nunca DATABASE_URL operativa. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -33,8 +34,11 @@ async function run() {
     execFileSync(process.execPath, [path.resolve(__dirname, '../migrations/migrador.js')], {
       env: process.env, stdio: 'pipe'
     });
-    comprobar((await pool.query('SELECT count(*)::int AS n FROM schema_migraciones')).rows[0].n === 6,
-      'Migrador real: seis migraciones aplicadas');
+    // El total sigue a los archivos empaquetados (007 corrige defaults timestamptz, A3-1-02).
+    const migracionesEsperadas = fs.readdirSync(path.resolve(__dirname, '../migrations')).filter(f => f.endsWith('.sql')).length;
+    comprobar(migracionesEsperadas >= 7 &&
+      (await pool.query('SELECT count(*)::int AS n FROM schema_migraciones')).rows[0].n === migracionesEsperadas,
+      `Migrador real: ${migracionesEsperadas} migraciones aplicadas`);
     console.log(`PostgreSQL ${(await pool.query('SHOW server_version')).rows[0].server_version}; entorno aislado (conexión omitida)`);
     const sufijo = randomUUID().slice(0, 8);
     const bcrypt = await import('bcryptjs');
