@@ -31,13 +31,13 @@ import { AuthService } from '../../services/auth.service';
         </div>
       </div>
 
-      <!-- Notificaciones de éxito y error -->
-      <div *ngIf="mensajeExito()" class="notificacion notif-exito">
+      <!-- Notificaciones de éxito y error en vista principal -->
+      <div *ngIf="mensajeExito() && !algunModalAbierto()" class="notificacion notif-exito" role="status">
         <span class="material-symbols-rounded">check_circle</span>
         <span>{{ mensajeExito() }}</span>
       </div>
 
-      <div *ngIf="mensajeError()" class="notificacion notif-error">
+      <div *ngIf="mensajeError() && !algunModalAbierto()" class="notificacion notif-error" role="alert">
         <span class="material-symbols-rounded">error</span>
         <span>{{ mensajeError() }}</span>
       </div>
@@ -335,6 +335,10 @@ import { AuthService } from '../../services/auth.service';
             <h3>{{ modoEdicionIngrediente() ? 'Editar Insumo' : 'Nuevo Insumo' }}</h3>
             <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
           </div>
+          <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <span>{{ mensajeError() }}</span>
+          </div>
           <form (ngSubmit)="guardarIngrediente()">
             <div class="form-group">
               <label for="ing-nombre">Nombre del Insumo *</label>
@@ -404,6 +408,10 @@ import { AuthService } from '../../services/auth.service';
           <div class="modal-header">
             <h3>{{ modoEdicionPlatillo() ? 'Editar Platillo y Receta' : 'Nuevo Platillo' }}</h3>
             <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+          </div>
+          <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <span>{{ mensajeError() }}</span>
           </div>
           <form (ngSubmit)="guardarPlatillo()">
             <div class="grid-dos-cols">
@@ -497,6 +505,10 @@ import { AuthService } from '../../services/auth.service';
             <h3>Registrar Entrada de Almacén</h3>
             <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
           </div>
+          <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <span>{{ mensajeError() }}</span>
+          </div>
           <form (ngSubmit)="guardarEntrada()">
             <div class="form-group">
               <label for="ent-ing">Insumo Recibido *</label>
@@ -547,6 +559,10 @@ import { AuthService } from '../../services/auth.service';
           <div class="modal-header">
             <h3>Registrar Ajuste / Merma de Inventario</h3>
             <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+          </div>
+          <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <span>{{ mensajeError() }}</span>
           </div>
           <form (ngSubmit)="guardarAjuste()">
             <div class="form-group">
@@ -600,6 +616,10 @@ import { AuthService } from '../../services/auth.service';
           <div class="modal-header">
             <h3>{{ modoEdicionPromocion() ? 'Editar Promoción' : 'Nueva Promoción' }}</h3>
             <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+          </div>
+          <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <span>{{ mensajeError() }}</span>
           </div>
 
           <form (ngSubmit)="guardarPromocion()">
@@ -779,6 +799,17 @@ import { AuthService } from '../../services/auth.service';
       background-color: var(--token-rojo-fondo);
       color: var(--token-rojo-alerta);
       border: 1px solid var(--token-rojo-borde);
+    }
+    .notif-modal {
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(185, 28, 28, 0.12);
+      animation: fadeInModal 0.2s ease-out;
+    }
+    @keyframes fadeInModal {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* Segmented Control Cupertino */
@@ -1182,6 +1213,14 @@ export class GestionComponent implements OnInit {
     motivo: ''
   };
 
+  algunModalAbierto(): boolean {
+    return this.mostrarModalIngrediente() ||
+           this.mostrarModalPlatillo() ||
+           this.mostrarModalEntrada() ||
+           this.mostrarModalAjuste() ||
+           this.mostrarModalPromocion();
+  }
+
   ngOnInit(): void {
     this.cargarDatos();
   }
@@ -1225,6 +1264,7 @@ export class GestionComponent implements OnInit {
 
   // --- ACCIONES INGREDIENTE ---
   abrirModalIngrediente(): void {
+    this.mensajeError.set('');
     this.modoEdicionIngrediente.set(false);
     this.ingredienteSeleccionadoId.set(null);
     this.formIngrediente = {
@@ -1237,6 +1277,7 @@ export class GestionComponent implements OnInit {
   }
 
   editarIngrediente(ing: IngredienteDTO): void {
+    this.mensajeError.set('');
     this.modoEdicionIngrediente.set(true);
     this.ingredienteSeleccionadoId.set(ing.id);
     this.formIngrediente = {
@@ -1293,6 +1334,7 @@ export class GestionComponent implements OnInit {
 
   // --- ACCIONES PLATILLO Y RECETA ---
   abrirModalPlatillo(): void {
+    this.mensajeError.set('');
     this.modoEdicionPlatillo.set(false);
     this.platilloSeleccionadoId.set(null);
     this.formPlatillo = {
@@ -1305,6 +1347,7 @@ export class GestionComponent implements OnInit {
   }
 
   editarPlatillo(plat: PlatilloDTO): void {
+    this.mensajeError.set('');
     this.modoEdicionPlatillo.set(true);
     this.platilloSeleccionadoId.set(plat.id);
     this.formPlatillo = {
@@ -1389,6 +1432,7 @@ export class GestionComponent implements OnInit {
 
   // --- ACCIONES ENTRADA Y AJUSTE ---
   abrirModalEntrada(): void {
+    this.mensajeError.set('');
     this.formEntrada = {
       ingredienteId: this.ingredientesActivos()[0]?.id || 0,
       cantidad: '',
@@ -1426,6 +1470,7 @@ export class GestionComponent implements OnInit {
   }
 
   abrirModalAjuste(): void {
+    this.mensajeError.set('');
     this.formAjuste = {
       ingredienteId: this.ingredientesActivos()[0]?.id || 0,
       cantidad: '',
@@ -1468,6 +1513,7 @@ export class GestionComponent implements OnInit {
 
   // --- ACCIONES PROMOCIONES ---
   abrirModalPromocion(): void {
+    this.mensajeError.set('');
     this.modoEdicionPromocion.set(false);
     this.promocionSeleccionadaId.set(null);
     const ahora = new Date();
@@ -1491,6 +1537,7 @@ export class GestionComponent implements OnInit {
   }
 
   abrirModalEditarPromocion(promo: PromocionDTO): void {
+    this.mensajeError.set('');
     this.modoEdicionPromocion.set(true);
     this.promocionSeleccionadaId.set(promo.id);
 
@@ -1638,6 +1685,7 @@ export class GestionComponent implements OnInit {
     this.mostrarModalEntrada.set(false);
     this.mostrarModalAjuste.set(false);
     this.mostrarModalPromocion.set(false);
+    this.mensajeError.set('');
     this.guardando.set(false);
   }
 
