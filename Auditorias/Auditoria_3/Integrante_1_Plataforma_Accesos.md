@@ -46,6 +46,10 @@ Fecha: 19 de octubre de 2026. Base revisada: `e6e0db5` (`main`, igual a `origin/
 - **Compilación Frontend (`npm run build:frontend`):** Exitosa con Angular CLI v21.2.26.
 - **Auditoría de dependencias (`npm audit` y `npm audit --omit=dev`):** 0 vulnerabilidades.
 
+## Límites de esta revisión
+
+El usuario asignó al orquestador las funciones del integrante 4, revisor principal del integrante 1. Esta auditoría la preparó un agente de IA: según `docs/rol-orquestador.md`, no cuenta como decisión de una segunda persona hasta que una persona la ratifique. No se probaron Supabase, restauración, despliegue HTTPS ni navegadores móviles. No se modificó código del integrante 1.
+
 ## Base para el tercer ciclo
 
 Entregar resultados por ID con archivos, comandos y entornos reales. A3-1-02 requiere una migración nueva coordinada; los integrantes 2 (catálogo, inventario), 3 (promociones) y 4 (órdenes) confirman sus tablas. Los criterios integrados y W1-06 siguen pendientes de las aprobaciones W2-06, W3-06 y W4-06.
