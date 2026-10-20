@@ -245,6 +245,11 @@ async function main() {
   // ─────────────────────────────────────────────────────────────────────────────
   console.log('\n🔍 5. Pruebas funcionales de catálogo e inventario (memoria)');
 
+  const urlOriginal = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  const envOriginal = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+
   almacenMemoria.ingredientes.length = 0;
   almacenMemoria.platillos.length = 0;
   almacenMemoria.recetas.length = 0;
@@ -317,6 +322,10 @@ async function main() {
       throw new Error(`Precio fue alterado o perdido: esperado 85.50, obtenido ${pActualizado.precio}`);
     }
   });
+
+  if (urlOriginal) process.env.DATABASE_URL = urlOriginal;
+  if (envOriginal !== undefined) process.env.NODE_ENV = envOriginal;
+  else delete process.env.NODE_ENV;
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Resumen final
