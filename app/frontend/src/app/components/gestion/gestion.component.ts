@@ -728,7 +728,7 @@ import { AuthService } from '../../services/auth.service';
             </small>
 
             <!-- Campos condicionales para TEMPORAL -->
-            <div *ngIf="formPromocion.duracion === 'TEMPORAL'" class="form-row-2">
+            <div *ngIf="formPromocion.duracion === 'TEMPORAL'" class="form-fechas-group">
               <div class="form-group">
                 <label for="promo-inicio">Fecha y Hora de Inicio * (Hora local)</label>
                 <input
@@ -1102,6 +1102,21 @@ import { AuthService } from '../../services/auth.service';
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+    }
+    .grid-dos-cols > *, .form-row-2 > * {
+      min-width: 0;
+    }
+    .form-fechas-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      width: 100%;
+    }
+    .form-fechas-group .input-cupertino {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      color-scheme: light;
     }
     .campo-ayuda {
       font-size: 0.78rem;
