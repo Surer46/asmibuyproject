@@ -816,20 +816,26 @@ import { AuthService } from '../../services/auth.service';
     .segmented-control {
       display: flex;
       background: #e5e5ea;
-      padding: 3px;
+      padding: 4px;
       border-radius: 12px;
       margin-bottom: 16px;
-      gap: 2px;
+      gap: 6px;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .segmented-control::-webkit-scrollbar {
+      display: none;
     }
     .segmented-control button {
-      flex: 1;
-      min-width: 110px;
+      flex: 0 0 auto;
+      min-width: max-content;
+      min-height: 44px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 8px 12px;
+      padding: 8px 16px;
       border-radius: 9px;
       border: none;
       background: transparent;
@@ -841,10 +847,23 @@ import { AuthService } from '../../services/auth.service';
       white-space: nowrap;
       font-family: inherit;
     }
+    .segmented-control button .material-symbols-rounded {
+      font-size: 19px;
+    }
     .segmented-control button.activo {
       background: #ffffff;
       color: var(--color-texto);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+    @media (min-width: 768px) {
+      .segmented-control {
+        gap: 4px;
+      }
+      .segmented-control button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 8px 12px;
+      }
     }
 
     /* Barra de herramientas */
