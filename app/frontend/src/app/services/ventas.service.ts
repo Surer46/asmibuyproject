@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, switchMap } from 'rxjs';
 import { AuthService } from './auth.service';
 import { ResultadoCotizacionDTO } from './promociones.service';
 
@@ -106,7 +106,9 @@ export class VentasApiService {
    * Confirma una orden de venta de forma atómica (CW-05, CW-06, CW-07, CW-14, CW-15)
    */
   confirmarVenta(data: ConfirmarVentaInput): Observable<OrdenDTO> {
-    return this.http.post<OrdenDTO>(`${this.baseUrl}/confirmar`, data, this.getOptions());
+    return this.authService.asegurarCsrfToken().pipe(
+      switchMap(() => this.http.post<OrdenDTO>(`${this.baseUrl}/confirmar`, data, this.getOptions()))
+    );
   }
 
   /**
@@ -148,10 +150,14 @@ export class VentasApiService {
    * Anula una orden de venta con motivo obligatorio (Exclusivo Administrador - CW-02, CW-16)
    */
   anularVenta(id: number, motivo: string): Observable<OrdenDTO> {
-    return this.http.post<OrdenDTO>(
-      `${this.baseUrl}/${id}/anular`,
-      { motivo },
-      this.getOptions()
+    return this.authService.asegurarCsrfToken().pipe(
+      switchMap(() =>
+        this.http.post<OrdenDTO>(
+          `${this.baseUrl}/${id}/anular`,
+          { motivo },
+          this.getOptions()
+        )
+      )
     );
   }
 }

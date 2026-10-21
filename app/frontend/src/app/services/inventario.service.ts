@@ -104,7 +104,14 @@ export class InventarioApiService {
   private readonly baseUrl = '/api/v1';
 
   private getOptions() {
-    const csrf = this.authService.csrfToken();
+    let csrf = this.authService.csrfToken();
+    if (!csrf && typeof document !== 'undefined') {
+      const match = document.cookie.match(/asmibuy_csrf=([^;]+)/);
+      if (match) {
+        csrf = match[1];
+        this.authService.csrfToken.set(csrf);
+      }
+    }
     return {
       withCredentials: true,
       headers: new HttpHeaders({

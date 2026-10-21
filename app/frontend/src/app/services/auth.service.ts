@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap, catchError, of } from 'rxjs';
+import { Observable, tap, catchError, of, map } from 'rxjs';
 import { Router } from '@angular/router';
 
 export interface UsuarioDTO {
@@ -44,7 +44,7 @@ export class AuthService {
    */
   verificarSesionInicial(): void {
     this.cargando.set(true);
-    this.http.get<{ usuario: UsuarioDTO }>(`${this.baseUrl}/me`, { withCredentials: true }).pipe(
+    this.http.get<{ usuario: UsuarioDTO; csrfToken?: string }>(`${this.baseUrl}/me`, { withCredentials: true }).pipe(
       catchError(() => {
         this.usuarioActual.set(null);
         return of(null);
@@ -52,6 +52,9 @@ export class AuthService {
     ).subscribe((res) => {
       if (res && res.usuario) {
         this.usuarioActual.set(res.usuario);
+        if (res.csrfToken) {
+          this.csrfToken.set(res.csrfToken);
+        }
         if (this.router.url.includes('/login') || this.router.url === '/') {
           this.router.navigate(['/venta']);
         }
@@ -60,6 +63,32 @@ export class AuthService {
       }
       this.cargando.set(false);
     });
+  }
+
+  /**
+   * Garantiza la disponibilidad de un token CSRF válido antes de mutaciones
+   */
+  asegurarCsrfToken(): Observable<string> {
+    const actual = this.csrfToken();
+    if (actual) {
+      return of(actual);
+    }
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/asmibuy_csrf=([^;]+)/);
+      if (match && match[1]) {
+        this.csrfToken.set(match[1]);
+        return of(match[1]);
+      }
+    }
+    return this.http.get<{ csrfToken: string }>(`${this.baseUrl}/csrf`, { withCredentials: true }).pipe(
+      tap((res) => {
+        if (res?.csrfToken) {
+          this.csrfToken.set(res.csrfToken);
+        }
+      }),
+      map((res) => res?.csrfToken || ''),
+      catchError(() => of(''))
+    );
   }
 
   /**

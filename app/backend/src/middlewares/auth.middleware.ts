@@ -20,7 +20,7 @@ export function esOrigenPermitido(origin?: string): boolean {
 
     // En desarrollo o pruebas, permitir loopback local y rangos IP privados automáticamente
     if (process.env.NODE_ENV !== 'production') {
-      if (host === 'localhost' || host === '127.0.0.1') {
+      if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') {
         return true;
       }
       const esIpPrivada = /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$/.test(host);

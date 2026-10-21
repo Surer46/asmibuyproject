@@ -166,7 +166,18 @@ authRouter.post('/auth/logout', async (req: Request, res: Response) => {
  */
 authRouter.get('/auth/me', exigirAutenticacion, (req: Request, res: Response) => {
   const u = req.usuario!;
+  let csrfToken = req.cookies?.asmibuy_csrf;
+  if (!csrfToken) {
+    csrfToken = AuthService.generarTokenCSRF();
+    res.cookie('asmibuy_csrf', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 8 * 60 * 60 * 1000
+    });
+  }
   res.json({
+    csrfToken,
     usuario: {
       id: u.id,
       nombre: u.nombre,

@@ -34,7 +34,7 @@ import {
         <span>{{ mensajeExito() }}</span>
       </div>
 
-      <div *ngIf="mensajeError()" class="notificacion notif-error">
+      <div *ngIf="mensajeError() && !modalAnulacionVisible() && !modalComprobanteVisible()" class="notificacion notif-error">
         <span class="material-symbols-rounded">error</span>
         <span>{{ mensajeError() }}</span>
       </div>
@@ -297,6 +297,12 @@ import {
             </p>
           </div>
 
+          <!-- Alerta de error visible directamente dentro del modal -->
+          <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
+            <span class="material-symbols-rounded">error</span>
+            <span>{{ mensajeError() }}</span>
+          </div>
+
           <div class="form-grupo">
             <label for="motivoAnulacion" class="form-label">Motivo obligatorio de anulación (*):</label>
             <textarea
@@ -368,6 +374,10 @@ import {
       background: var(--token-rojo-fondo);
       color: var(--token-rojo-alerta);
       border: 1px solid var(--token-rojo-borde);
+    }
+    .notif-modal {
+      margin: 12px 0 16px 0;
+      text-align: left;
     }
 
     /* Grid de Métricas */
@@ -812,6 +822,7 @@ export class HistorialComponent implements OnInit {
   }
 
   abrirModalAnulacion(orden: OrdenDTO): void {
+    this.limpiarMensajes();
     this.ordenAAnular.set(orden);
     this.motivoAnulacion = '';
     this.modalAnulacionVisible.set(true);
@@ -821,6 +832,7 @@ export class HistorialComponent implements OnInit {
     this.modalAnulacionVisible.set(false);
     this.ordenAAnular.set(null);
     this.motivoAnulacion = '';
+    this.limpiarMensajes();
   }
 
   procesarAnulacion(): void {
