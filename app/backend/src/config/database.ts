@@ -23,7 +23,8 @@ function obtenerConfiguracionSSL(): boolean | { rejectUnauthorized: boolean; ca?
   };
 
   if (process.env.DB_SSL_CA) {
-    sslConfig.ca = process.env.DB_SSL_CA;
+    // DB_SSL_CA contiene el certificado PEM (no una ruta). Se admite en una sola línea con "\n" literales.
+    sslConfig.ca = process.env.DB_SSL_CA.replace(/\\n/g, '\n');
   }
 
   return sslConfig;
