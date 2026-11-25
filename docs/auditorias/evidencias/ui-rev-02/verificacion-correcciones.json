@@ -1,0 +1,134 @@
+[
+  {
+    "id": "H-01",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "alerta=true, botón=\"Entrar al Sistema\""
+  },
+  {
+    "id": "H-02",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "taco→1 (1 disponible), zzzz→vacío=true, limpiar→5"
+  },
+  {
+    "id": "H-09",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "resumen visible=true \"shopping_cart 2 artículos $67.50 Ver carrito\", tras clic carrito y=123 foco=titulo-carrito"
+  },
+  {
+    "id": "H-06",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "menú: Venta, Avisos, Historial, Gestión; salir: \"Salir\""
+  },
+  {
+    "id": "H-07",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "axe Venta: sin violaciones"
+  },
+  {
+    "id": "H-03",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "recarga con sesión: avisos→/avisos, historial→/historial, gestion→/gestion"
+  },
+  {
+    "id": "H-05",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Editar Carne al pastor | Editar Cebolla | Editar Frijol refrito …"
+  },
+  {
+    "id": "H-10",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Carne al pastor Normal Unidad: g Existencia: 8,000 g Mínimo: 2,000 g edit Cebolla Normal Unidad: g Existencia: 2,000 g Mínimo: 500 g edit Frijol refrito Normal "
+  },
+  {
+    "id": "H-04",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "foco inicial=ing-nombre, 15 Tab/Shift+Tab dentro=true, rotulado=true, Esc cierra=true, foco vuelve a \"add Nuevo Insumo\", axe diálogo: ok"
+  },
+  {
+    "id": "H-08",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "axe Promociones: sin violaciones; botones: Editar 3x2 en tacos | Pausar 3x2 en tacos | Retirar 3x2 en tacos"
+  },
+  {
+    "id": "H-03b",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "sin sesión → /login?volver=%2Fhistorial, tras login → /historial; volver=//evil → /venta; trabajador /gestion → /venta"
+  },
+  {
+    "id": "H-01",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "alerta=true, botón=\"Entrar al Sistema\""
+  },
+  {
+    "id": "H-02",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "taco→1 (1 disponible), zzzz→vacío=true, limpiar→5"
+  },
+  {
+    "id": "H-09",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "resumen oculto en escritorio (carrito ya visible en 2 columnas)"
+  },
+  {
+    "id": "H-06",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "menú: Venta, Avisos, Historial, Gestión; salir: \"Cerrar sesión\""
+  },
+  {
+    "id": "H-07",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "axe Venta: sin violaciones"
+  },
+  {
+    "id": "H-03",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "recarga con sesión: avisos→/avisos, historial→/historial, gestion→/gestion"
+  },
+  {
+    "id": "H-05",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Editar Carne al pastor | Editar Cebolla | Editar Frijol refrito …"
+  },
+  {
+    "id": "H-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Carne al pastor Normal Unidad: g Existencia: 8,000 g Mínimo: 2,000 g edit Cebolla Normal Unidad: g Existencia: 2,000 g Mínimo: 500 g edit Frijol refrito Normal "
+  },
+  {
+    "id": "H-04",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "foco inicial=ing-nombre, 15 Tab/Shift+Tab dentro=true, rotulado=true, Esc cierra=true, foco vuelve a \"add Nuevo Insumo\", axe diálogo: ok"
+  },
+  {
+    "id": "H-08",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "axe Promociones: sin violaciones; botones: Editar 3x2 en tacos | Pausar 3x2 en tacos | Retirar 3x2 en tacos"
+  },
+  {
+    "id": "H-03b",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "sin sesión → /login?volver=%2Fhistorial, tras login → /historial; volver=//evil → /venta; trabajador /gestion → /venta"
+  }
+]

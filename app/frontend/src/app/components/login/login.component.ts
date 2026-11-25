@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -12,7 +12,7 @@ import { AuthService } from '../../services/auth.service';
       <div class="login-card card-cupertino">
         <div class="brand-header">
           <div class="icon-circle">
-            <span class="material-symbols-rounded filled">restaurant_menu</span>
+            <span aria-hidden="true" class="material-symbols-rounded filled">restaurant_menu</span>
           </div>
           <h1>Asmibuy</h1>
           <p class="subtitle">Acceso exclusivo para empleados de sucursal</p>
@@ -22,7 +22,7 @@ import { AuthService } from '../../services/auth.service';
           <div class="form-group">
             <label for="correo">Correo Electrónico</label>
             <div class="input-wrapper">
-              <span class="material-symbols-rounded input-icon">mail</span>
+              <span aria-hidden="true" class="material-symbols-rounded input-icon">mail</span>
               <input
                 id="correo"
                 type="email"
@@ -44,10 +44,10 @@ import { AuthService } from '../../services/auth.service';
           <div class="form-group">
             <label for="password">Contraseña</label>
             <div class="input-wrapper">
-              <span class="material-symbols-rounded input-icon">lock</span>
+              <span aria-hidden="true" class="material-symbols-rounded input-icon">lock</span>
               <input
                 id="password"
-                [type]="mostrarPassword ? 'text' : 'password'"
+                [type]="mostrarPassword() ? 'text' : 'password'"
                 formControlName="password"
                 placeholder="Ingresa tu contraseña"
                 autocomplete="current-password"
@@ -55,12 +55,12 @@ import { AuthService } from '../../services/auth.service';
               />
               <button
                 type="button"
-                (click)="mostrarPassword = !mostrarPassword"
+                (click)="mostrarPassword.set(!mostrarPassword())"
                 class="toggle-pass-btn"
-                [attr.aria-label]="mostrarPassword ? 'Ocultar contraseña' : 'Ver contraseña'"
+                [attr.aria-label]="mostrarPassword() ? 'Ocultar contraseña' : 'Ver contraseña'"
               >
-                <span class="material-symbols-rounded">
-                  {{ mostrarPassword ? 'visibility_off' : 'visibility' }}
+                <span aria-hidden="true" class="material-symbols-rounded">
+                  {{ mostrarPassword() ? 'visibility_off' : 'visibility' }}
                 </span>
               </button>
             </div>
@@ -69,24 +69,24 @@ import { AuthService } from '../../services/auth.service';
             }
           </div>
 
-          @if (errorMensaje) {
+          @if (errorMensaje()) {
             <div class="error-banner" role="alert">
-              <span class="material-symbols-rounded">error</span>
-              <span>{{ errorMensaje }}</span>
+              <span aria-hidden="true" class="material-symbols-rounded">error</span>
+              <span>{{ errorMensaje() }}</span>
             </div>
           }
 
           <button
             type="submit"
             class="btn-cupertino btn-naranja btn-full"
-            [disabled]="form.invalid || cargando"
+            [disabled]="form.invalid || cargando()"
           >
-            @if (cargando) {
-              <span class="material-symbols-rounded spin">progress_activity</span>
+            @if (cargando()) {
+              <span aria-hidden="true" class="material-symbols-rounded spin">progress_activity</span>
               <span>Iniciando sesión...</span>
             } @else {
               <span>Entrar al Sistema</span>
-              <span class="material-symbols-rounded">arrow_forward</span>
+              <span aria-hidden="true" class="material-symbols-rounded">arrow_forward</span>
             }
           </button>
         </form>
@@ -237,9 +237,11 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
 
-  mostrarPassword = false;
-  cargando = false;
-  errorMensaje = '';
+  // Estado de la vista como signals: la app es zoneless (Angular 21) y las
+  // propiedades normales no repintan la pantalla dentro de callbacks HTTP (H-01).
+  mostrarPassword = signal(false);
+  cargando = signal(false);
+  errorMensaje = signal('');
 
   form: FormGroup = this.fb.group({
     correo: ['', [Validators.required, Validators.email]],
@@ -247,19 +249,22 @@ export class LoginComponent {
   });
 
   onSubmit(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
-    this.cargando = true;
-    this.errorMensaje = '';
+    this.cargando.set(true);
+    this.errorMensaje.set('');
 
     const { correo, password } = this.form.value;
     this.authService.login(correo, password).subscribe({
       next: () => {
-        this.cargando = false;
+        this.cargando.set(false);
       },
       error: (err) => {
-        this.cargando = false;
-        this.errorMensaje = err.error?.mensaje || 'Error al conectar con el servidor de autenticación.';
+        this.cargando.set(false);
+        this.errorMensaje.set(err.error?.mensaje || 'Error al conectar con el servidor de autenticación.');
       }
     });
   }

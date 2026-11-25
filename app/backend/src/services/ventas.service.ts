@@ -10,7 +10,6 @@ import {
 } from './almacen-memoria';
 import { InventarioService, ItemConsumoDTO } from './inventario.service';
 import { PromocionesService, ResultadoCotizacionDTO } from './promociones.service';
-import { CatalogoService } from './catalogo.service';
 import { normalizarPeriodo } from './periodo-ventas';
 
 // Configuración de decimal.js según reglas de AGENTS.md

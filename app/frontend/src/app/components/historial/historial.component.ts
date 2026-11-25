@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DialogoModalDirective } from '../../directives/dialogo-modal.directive';
 import { AuthService } from '../../services/auth.service';
 import {
   VentasApiService,
@@ -11,7 +12,7 @@ import {
 @Component({
   selector: 'app-historial',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogoModalDirective],
   template: `
     <div class="app-container">
       <!-- Encabezado -->
@@ -23,19 +24,19 @@ import {
           </p>
         </div>
         <button (click)="cargarHistorial()" class="btn-cupertino btn-secundario btn-sm" [disabled]="cargando()">
-          <span class="material-symbols-rounded" [class.icono-rotando]="cargando()">refresh</span>
+          <span aria-hidden="true" class="material-symbols-rounded" [class.icono-rotando]="cargando()">refresh</span>
           <span>{{ cargando() ? 'Consultando...' : 'Actualizar' }}</span>
         </button>
       </div>
 
       <!-- Notificaciones -->
       <div *ngIf="mensajeExito()" class="notificacion notif-exito">
-        <span class="material-symbols-rounded">check_circle</span>
+        <span aria-hidden="true" class="material-symbols-rounded">check_circle</span>
         <span>{{ mensajeExito() }}</span>
       </div>
 
       <div *ngIf="mensajeError() && !modalAnulacionVisible() && !modalComprobanteVisible()" class="notificacion notif-error">
-        <span class="material-symbols-rounded">error</span>
+        <span aria-hidden="true" class="material-symbols-rounded">error</span>
         <span>{{ mensajeError() }}</span>
       </div>
 
@@ -43,7 +44,7 @@ import {
       <div class="resumen-grid" *ngIf="resumen()">
         <div class="card-cupertino metric-card">
           <div class="metric-icon-box bg-verde-suave">
-            <span class="material-symbols-rounded text-verde">payments</span>
+            <span aria-hidden="true" class="material-symbols-rounded text-verde">payments</span>
           </div>
           <div class="metric-content">
             <span class="metric-label">Total Vigente del Periodo</span>
@@ -54,7 +55,7 @@ import {
 
         <div class="card-cupertino metric-card">
           <div class="metric-icon-box bg-azul-suave">
-            <span class="material-symbols-rounded text-azul">receipt</span>
+            <span aria-hidden="true" class="material-symbols-rounded text-azul">receipt</span>
           </div>
           <div class="metric-content">
             <span class="metric-label">Órdenes Confirmadas</span>
@@ -65,7 +66,7 @@ import {
 
         <div class="card-cupertino metric-card">
           <div class="metric-icon-box bg-rojo-suave">
-            <span class="material-symbols-rounded text-rojo">cancel</span>
+            <span aria-hidden="true" class="material-symbols-rounded text-rojo">cancel</span>
           </div>
           <div class="metric-content">
             <span class="metric-label">Órdenes Anuladas</span>
@@ -109,13 +110,13 @@ import {
 
       <!-- Estado de Carga -->
       <div *ngIf="cargando()" class="loading-state card-cupertino">
-        <span class="material-symbols-rounded icono-rotando">refresh</span>
+        <span aria-hidden="true" class="material-symbols-rounded icono-rotando">refresh</span>
         <p>Cargando órdenes del periodo...</p>
       </div>
 
       <!-- Estado Vacío -->
       <div *ngIf="!cargando() && (!resumen() || resumen()!.ordenes.length === 0)" class="empty-state card-cupertino">
-        <span class="material-symbols-rounded icon-grande">receipt_long</span>
+        <span aria-hidden="true" class="material-symbols-rounded icon-grande">receipt_long</span>
         <p>No se encontraron órdenes registradas para el periodo seleccionado.</p>
       </div>
 
@@ -141,19 +142,19 @@ import {
 
           <div class="orden-detalles-meta">
             <div class="meta-dato">
-              <span class="material-symbols-rounded">calendar_today</span>
+              <span aria-hidden="true" class="material-symbols-rounded">calendar_today</span>
               <span>{{ formatearFecha(orden.creadoEn) }}</span>
             </div>
             <div class="meta-dato">
-              <span class="material-symbols-rounded">person</span>
+              <span aria-hidden="true" class="material-symbols-rounded">person</span>
               <span>Cajero: {{ orden.nombreCajero }}</span>
             </div>
             <div class="meta-dato">
-              <span class="material-symbols-rounded">payments</span>
+              <span aria-hidden="true" class="material-symbols-rounded">payments</span>
               <span>Método: {{ orden.metodoPago }}</span>
             </div>
             <div *ngIf="orden.promocion?.nombre" class="meta-dato">
-              <span class="material-symbols-rounded text-morado">local_offer</span>
+              <span aria-hidden="true" class="material-symbols-rounded text-morado">local_offer</span>
               <span class="text-morado">Promo: {{ orden.promocion?.nombre }}</span>
             </div>
           </div>
@@ -161,7 +162,7 @@ import {
           <!-- Información de Anulación (CW-16) -->
           <div *ngIf="orden.estado === 'ANULADA'" class="aviso-anulacion">
             <div class="anulacion-header">
-              <span class="material-symbols-rounded">info</span>
+              <span aria-hidden="true" class="material-symbols-rounded">info</span>
               <span>Anulada por {{ orden.nombreUsuarioAnulacion || 'Administrador' }} el {{ formatearFecha(orden.anuladoEn || '') }}</span>
             </div>
             <p class="anulacion-motivo"><strong>Motivo:</strong> "{{ orden.motivoAnulacion }}"</p>
@@ -170,7 +171,7 @@ import {
           <!-- Acciones de la Orden -->
           <div class="orden-acciones">
             <button (click)="verDetalle(orden)" class="btn-cupertino btn-sm btn-secundario">
-              <span class="material-symbols-rounded">visibility</span>
+              <span aria-hidden="true" class="material-symbols-rounded">visibility</span>
               <span>Ver Comprobante</span>
             </button>
 
@@ -179,7 +180,7 @@ import {
               *ngIf="authService.esAdmin() && orden.estado === 'CONFIRMADA'"
               (click)="abrirModalAnulacion(orden)"
               class="btn-cupertino btn-sm btn-rojo">
-              <span class="material-symbols-rounded">cancel</span>
+              <span aria-hidden="true" class="material-symbols-rounded">cancel</span>
               <span>Anular Venta</span>
             </button>
           </div>
@@ -188,10 +189,10 @@ import {
 
       <!-- MODAL DE COMPROBANTE HISTÓRICO (CW-15 / W4-04) -->
       <div *ngIf="modalComprobanteVisible() && ordenSeleccionada()" class="modal-backdrop">
-        <div class="card-cupertino modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-comprobante-titulo">
+        <div class="card-cupertino modal-box" appDialogoModal aria-labelledby="modal-comprobante-titulo" (cerrar)="cerrarModalComprobante()">
           <div class="comprobante-header">
             <div class="icono-comprobante" [class.bg-rojo-suave]="ordenSeleccionada()!.estado === 'ANULADA'">
-              <span class="material-symbols-rounded" [class.text-rojo]="ordenSeleccionada()!.estado === 'ANULADA'">
+              <span aria-hidden="true" class="material-symbols-rounded" [class.text-rojo]="ordenSeleccionada()!.estado === 'ANULADA'">
                 {{ ordenSeleccionada()!.estado === 'ANULADA' ? 'cancel' : 'receipt' }}
               </span>
             </div>
@@ -266,7 +267,7 @@ import {
 
             <!-- Aviso si la orden está anulada -->
             <div *ngIf="ordenSeleccionada()!.estado === 'ANULADA'" class="aviso-anulacion modal-aviso-anulacion">
-              <span class="material-symbols-rounded">error</span>
+              <span aria-hidden="true" class="material-symbols-rounded">error</span>
               <div>
                 <strong>Orden Anulada:</strong>
                 <p>Motivo: "{{ ordenSeleccionada()!.motivoAnulacion }}"</p>
@@ -285,10 +286,10 @@ import {
 
       <!-- MODAL DE ANULACIÓN DE VENTA (CW-02 / CW-16 / W4-05) -->
       <div *ngIf="modalAnulacionVisible() && ordenAAnular()" class="modal-backdrop">
-        <div class="card-cupertino modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-anulacion-titulo">
+        <div class="card-cupertino modal-box" appDialogoModal aria-labelledby="modal-anulacion-titulo" (cerrar)="cerrarModalAnulacion()">
           <div class="anulacion-modal-header">
             <div class="icono-alerta-rojo">
-              <span class="material-symbols-rounded">warning</span>
+              <span aria-hidden="true" class="material-symbols-rounded">warning</span>
             </div>
             <h3 id="modal-anulacion-titulo">Anular Orden {{ ordenAAnular()!.folio }}</h3>
             <p class="advertencia-texto">
@@ -299,7 +300,7 @@ import {
 
           <!-- Alerta de error visible directamente dentro del modal -->
           <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
             <span>{{ mensajeError() }}</span>
           </div>
 
@@ -316,7 +317,7 @@ import {
 
           <div class="modal-acciones">
             <button (click)="procesarAnulacion()" class="btn-cupertino btn-rojo" [disabled]="anulando() || !motivoAnulacion.trim()">
-              <span class="material-symbols-rounded" [class.icono-rotando]="anulando()">
+              <span aria-hidden="true" class="material-symbols-rounded" [class.icono-rotando]="anulando()">
                 {{ anulando() ? 'sync' : 'delete_forever' }}
               </span>
               <span>{{ anulando() ? 'Anulando...' : 'Confirmar Anulación' }}</span>

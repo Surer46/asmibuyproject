@@ -2,6 +2,7 @@ import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DialogoModalDirective } from '../../directives/dialogo-modal.directive';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { InventarioApiService, PlatilloDTO } from '../../services/inventario.service';
@@ -25,7 +26,7 @@ export interface ItemCarrito {
 @Component({
   selector: 'app-venta',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogoModalDirective],
   template: `
     <div class="app-container">
       <!-- Encabezado de la Pantalla -->
@@ -35,7 +36,7 @@ export interface ItemCarrito {
           <p class="subtitle">Selección de platillos, carrito dinámico y confirmación transaccional</p>
         </div>
         <div class="user-chip">
-          <span class="material-symbols-rounded">account_circle</span>
+          <span aria-hidden="true" class="material-symbols-rounded">account_circle</span>
           <span>{{ authService.usuarioActual()?.nombre }} ({{ authService.usuarioActual()?.perfil }})</span>
         </div>
       </div>
@@ -43,7 +44,7 @@ export interface ItemCarrito {
       <!-- Banner de Recuperación de Venta en Vuelo (CW-19) -->
       <div *ngIf="ventaPendienteClave()" class="banner-aviso banner-recuperacion card-cupertino">
         <div class="banner-contenido">
-          <span class="material-symbols-rounded icon-aviso">sync_problem</span>
+          <span aria-hidden="true" class="material-symbols-rounded icon-aviso">sync_problem</span>
           <div>
             <strong>Transacción en vuelo detectada</strong>
             <p>Se detectó una confirmación pendiente en este navegador tras una posible desconexión. Puedes verificar su resultado sin duplicar consumos.</p>
@@ -51,7 +52,7 @@ export interface ItemCarrito {
         </div>
         <div class="banner-acciones">
           <button (click)="verificarVentaPendiente()" class="btn-cupertino btn-sm btn-naranja" [disabled]="recuperando() || confirmando()">
-            <span class="material-symbols-rounded" [class.icono-rotando]="recuperando()">refresh</span>
+            <span aria-hidden="true" class="material-symbols-rounded" [class.icono-rotando]="recuperando()">refresh</span>
             <span>{{ recuperando() ? 'Verificando...' : 'Verificar Estado' }}</span>
           </button>
           <button (click)="reintentarVentaPendiente()" class="btn-cupertino btn-sm btn-secundario" [disabled]="recuperando() || confirmando() || !puedeReintentarPendiente()">
@@ -62,56 +63,56 @@ export interface ItemCarrito {
 
       <!-- Notificaciones de Alerta / Error / Éxito -->
       <div *ngIf="mensajeExito()" class="notificacion notif-exito">
-        <span class="material-symbols-rounded">check_circle</span>
+        <span aria-hidden="true" class="material-symbols-rounded">check_circle</span>
         <span>{{ mensajeExito() }}</span>
       </div>
 
       <div *ngIf="mensajeAlerta()" class="notificacion notif-alerta">
-        <span class="material-symbols-rounded">warning</span>
+        <span aria-hidden="true" class="material-symbols-rounded">warning</span>
         <span>{{ mensajeAlerta() }}</span>
       </div>
 
       <div *ngIf="mensajeError()" class="notificacion notif-error">
-        <span class="material-symbols-rounded">error</span>
+        <span aria-hidden="true" class="material-symbols-rounded">error</span>
         <span>{{ mensajeError() }}</span>
       </div>
 
       <!-- Distribución Principal: Catálogo (Izquierda) y Carrito/Cobro (Derecha) -->
       <fieldset [disabled]="confirmando() || !!ventaPendienteClave()" style="border:0; padding:0; margin:0; min-width:0">
-      <div class="pos-layout">
+      <div class="pos-layout" [class.con-resumen-movil]="carrito().length > 0">
         <!-- SECCIÓN 1: CATÁLOGO DE PLATILLOS -->
         <section class="catalogo-section">
           <div class="catalogo-header">
             <h3>Catálogo de Platillos</h3>
-            <span class="badge badge-verde">{{ platillosFiltrados().length }} disponibles</span>
+            <span class="badge badge-verde">{{ platillosFiltrados().length }} {{ platillosFiltrados().length === 1 ? 'disponible' : 'disponibles' }}</span>
           </div>
 
           <!-- Barra de Búsqueda de Platillos -->
           <div class="busqueda-container">
-            <span class="material-symbols-rounded busqueda-icon">search</span>
+            <span aria-hidden="true" class="material-symbols-rounded busqueda-icon">search</span>
             <input
               type="text"
-              [(ngModel)]="filtroTexto"
+              [ngModel]="filtroTexto()" (ngModelChange)="filtroTexto.set($event)"
               placeholder="Buscar platillo por nombre..."
               class="busqueda-input"
               aria-label="Buscar platillo"
             />
-            <button *ngIf="filtroTexto" (click)="filtroTexto = ''" class="btn-limpiar" aria-label="Limpiar búsqueda">
-              <span class="material-symbols-rounded">close</span>
+            <button *ngIf="filtroTexto()" (click)="filtroTexto.set('')" class="btn-limpiar" aria-label="Limpiar búsqueda">
+              <span aria-hidden="true" class="material-symbols-rounded">close</span>
             </button>
           </div>
 
           <!-- Estado de Carga -->
           <div *ngIf="cargandoCatalogo()" class="loading-state card-cupertino">
-            <span class="material-symbols-rounded icono-rotando">refresh</span>
+            <span aria-hidden="true" class="material-symbols-rounded icono-rotando">refresh</span>
             <p>Cargando menú de platillos disponibles...</p>
           </div>
 
           <!-- Estado Vacío -->
           <div *ngIf="!cargandoCatalogo() && platillosFiltrados().length === 0" class="empty-state card-cupertino">
-            <span class="material-symbols-rounded icon-grande">restaurant_menu</span>
-            <p *ngIf="filtroTexto">No se encontraron platillos que coincidan con "{{ filtroTexto }}".</p>
-            <p *ngIf="!filtroTexto">No hay platillos activos con receta válida en el catálogo.</p>
+            <span aria-hidden="true" class="material-symbols-rounded icon-grande">restaurant_menu</span>
+            <p *ngIf="filtroTexto()">No se encontraron platillos que coincidan con "{{ filtroTexto() }}".</p>
+            <p *ngIf="!filtroTexto()">No hay platillos activos con receta válida en el catálogo.</p>
           </div>
 
           <!-- Cuadrícula / Lista de Platillos -->
@@ -136,20 +137,32 @@ export interface ItemCarrito {
                 (click)="agregarAlCarrito(platillo)"
                 class="btn-cupertino btn-naranja btn-agregar"
                 [attr.aria-label]="'Agregar ' + platillo.nombre + ' al carrito'">
-                <span class="material-symbols-rounded">add_shopping_cart</span>
+                <span aria-hidden="true" class="material-symbols-rounded">add_shopping_cart</span>
                 <span>Agregar</span>
               </button>
             </div>
           </div>
         </section>
 
+        <!-- Resumen fijo del carrito en pantallas angostas (H-09): total visible sin desplazarse -->
+        <button
+          *ngIf="carrito().length > 0"
+          type="button"
+          class="resumen-carrito-movil"
+          (click)="irAlCarrito()">
+          <span aria-hidden="true" class="material-symbols-rounded">shopping_cart</span>
+          <span class="resumen-articulos">{{ totalArticulos() }} {{ totalArticulos() === 1 ? 'artículo' : 'artículos' }}</span>
+          <strong class="resumen-total">{{ cotizacion() ? '\$' + cotizacion()!.total : (cotizando() ? 'Calculando…' : '') }}</strong>
+          <span class="resumen-accion">Ver carrito</span>
+        </button>
+
         <!-- SECCIÓN 2: CARRITO, COTIZACIÓN Y CONFIRMACIÓN -->
-        <section class="carrito-section">
+        <section class="carrito-section" id="seccion-carrito">
           <div class="card-cupertino carrito-card">
             <div class="carrito-header">
               <div class="titulo-con-icono">
-                <span class="material-symbols-rounded">shopping_cart</span>
-                <h3>Carrito de Venta</h3>
+                <span aria-hidden="true" class="material-symbols-rounded">shopping_cart</span>
+                <h3 id="titulo-carrito" tabindex="-1">Carrito de Venta</h3>
               </div>
               <button
                 *ngIf="carrito().length > 0"
@@ -157,14 +170,14 @@ export interface ItemCarrito {
                 class="btn-limpiar-carrito"
                 title="Vaciar carrito"
                 aria-label="Vaciar carrito">
-                <span class="material-symbols-rounded">delete_sweep</span>
+                <span aria-hidden="true" class="material-symbols-rounded">delete_sweep</span>
                 <span>Vaciar</span>
               </button>
             </div>
 
             <!-- Carrito Vacío -->
             <div *ngIf="carrito().length === 0" class="carrito-vacio">
-              <span class="material-symbols-rounded icon-carrito-vacio">shopping_basket</span>
+              <span aria-hidden="true" class="material-symbols-rounded icon-carrito-vacio">shopping_basket</span>
               <p class="texto-vacio-primario">El carrito está vacío</p>
               <p class="texto-vacio-secundario">Toca "Agregar" en los platillos del catálogo para armar la orden.</p>
             </div>
@@ -185,14 +198,14 @@ export interface ItemCarrito {
                     (click)="decrementarCantidad(item)"
                     class="btn-cantidad"
                     [attr.aria-label]="'Restar uno a ' + item.platillo.nombre">
-                    <span class="material-symbols-rounded">{{ item.cantidad === 1 ? 'delete' : 'remove' }}</span>
+                    <span aria-hidden="true" class="material-symbols-rounded">{{ item.cantidad === 1 ? 'delete' : 'remove' }}</span>
                   </button>
                   <span class="cantidad-numero" aria-live="polite">{{ item.cantidad }}</span>
                   <button
                     (click)="incrementarCantidad(item)"
                     class="btn-cantidad"
                     [attr.aria-label]="'Sumar uno a ' + item.platillo.nombre">
-                    <span class="material-symbols-rounded">add</span>
+                    <span aria-hidden="true" class="material-symbols-rounded">add</span>
                   </button>
                 </div>
               </div>
@@ -202,7 +215,7 @@ export interface ItemCarrito {
             <div *ngIf="carrito().length > 0" class="resumen-cotizacion">
               <!-- Indicador de Cálculo de Cotización -->
               <div *ngIf="cotizando()" class="cotizando-indicator">
-                <span class="material-symbols-rounded icono-rotando">sync</span>
+                <span aria-hidden="true" class="material-symbols-rounded icono-rotando">sync</span>
                 <span>Calculando promociones y cotización...</span>
               </div>
 
@@ -217,7 +230,7 @@ export interface ItemCarrito {
                   <div class="descuento-info">
                     <span class="label">Descuento aplicado:</span>
                     <span class="badge badge-morado promo-tag" *ngIf="cotizacion()!.promocionAplicada">
-                      <span class="material-symbols-rounded">local_offer</span>
+                      <span aria-hidden="true" class="material-symbols-rounded">local_offer</span>
                       {{ cotizacion()!.promocionAplicada!.nombre }}
                     </span>
                   </div>
@@ -226,7 +239,7 @@ export interface ItemCarrito {
 
                 <!-- Unidades bonificadas en detalle si aplica promoción NxM (CW-12) -->
                 <div *ngIf="hayUnidadesBonificadas()" class="bonificadas-aviso">
-                  <span class="material-symbols-rounded">card_giftcard</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">card_giftcard</span>
                   <span>Incluye unidades de cortesía por promoción NxM (consumen insumos completos)</span>
                 </div>
 
@@ -251,7 +264,7 @@ export interface ItemCarrito {
                     class="btn-metodo"
                     [class.seleccionado]="metodoPagoSeleccionado() === 'EFECTIVO'"
                     (click)="metodoPagoSeleccionado.set('EFECTIVO')">
-                    <span class="material-symbols-rounded">payments</span>
+                    <span aria-hidden="true" class="material-symbols-rounded">payments</span>
                     <span>Efectivo</span>
                   </button>
                   <button
@@ -259,7 +272,7 @@ export interface ItemCarrito {
                     class="btn-metodo"
                     [class.seleccionado]="metodoPagoSeleccionado() === 'EXTERNO'"
                     (click)="metodoPagoSeleccionado.set('EXTERNO')">
-                    <span class="material-symbols-rounded">credit_card</span>
+                    <span aria-hidden="true" class="material-symbols-rounded">credit_card</span>
                     <span>Tarjeta / Externo</span>
                   </button>
                 </div>
@@ -270,7 +283,7 @@ export interface ItemCarrito {
                 (click)="confirmarVenta()"
                 class="btn-cupertino btn-verde btn-confirmar-venta"
                 [disabled]="confirmando() || cotizando() || !cotizacion()">
-                <span class="material-symbols-rounded" [class.icono-rotando]="confirmando()">
+                <span aria-hidden="true" class="material-symbols-rounded" [class.icono-rotando]="confirmando()">
                   {{ confirmando() ? 'sync' : 'check_circle' }}
                 </span>
                 <span>
@@ -279,7 +292,7 @@ export interface ItemCarrito {
               </button>
 
               <p class="seguridad-aviso">
-                <span class="material-symbols-rounded">verified_user</span>
+                <span aria-hidden="true" class="material-symbols-rounded">verified_user</span>
                 <span>Transacción atómica: existencia revalidada en servidor e idempotencia protegida.</span>
               </p>
             </div>
@@ -290,10 +303,10 @@ export interface ItemCarrito {
 
       <!-- MODAL DE COMPROBANTE EN PANTALLA (CW-15 / W4-03 / W4-04) -->
       <div *ngIf="comprobanteVisible() && ordenComprobante()" class="modal-backdrop">
-        <div class="card-cupertino modal-comprobante" role="dialog" aria-modal="true" aria-labelledby="modal-comprobante-titulo">
+        <div class="card-cupertino modal-comprobante" appDialogoModal aria-labelledby="modal-comprobante-titulo" (cerrar)="cerrarComprobante()">
           <div class="comprobante-header">
             <div class="icono-exito">
-              <span class="material-symbols-rounded">task_alt</span>
+              <span aria-hidden="true" class="material-symbols-rounded">task_alt</span>
             </div>
             <h3 id="modal-comprobante-titulo">¡Venta Confirmada con Éxito!</h3>
             <div class="folio-badge">
@@ -368,7 +381,7 @@ export interface ItemCarrito {
 
           <div class="comprobante-acciones">
             <button (click)="iniciarNuevaVenta()" class="btn-cupertino btn-naranja btn-nueva-venta">
-              <span class="material-symbols-rounded">add_circle</span>
+              <span aria-hidden="true" class="material-symbols-rounded">add_circle</span>
               <span>Nueva Venta</span>
             </button>
             <button (click)="cerrarComprobante()" class="btn-cupertino btn-secundario">
@@ -476,7 +489,55 @@ export interface ItemCarrito {
       gap: 18px;
     }
 
+    /* Resumen fijo del carrito (H-09): sólo cuando el carrito no está a la vista en columna única */
+    .resumen-carrito-movil {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(72px + env(safe-area-inset-bottom));
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 14px;
+      background: #166534;
+      color: #ffffff;
+      font: inherit;
+      font-size: 15px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      cursor: pointer;
+    }
+    .resumen-carrito-movil:focus-visible {
+      outline: 3px solid #1f2937;
+      outline-offset: 2px;
+    }
+    .resumen-carrito-movil .resumen-total {
+      margin-left: auto;
+      font-size: 17px;
+    }
+    .resumen-carrito-movil .resumen-accion {
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .pos-layout.con-resumen-movil {
+      padding-bottom: 76px;
+    }
+    @media (min-width: 768px) {
+      .resumen-carrito-movil {
+        bottom: calc(16px + env(safe-area-inset-bottom));
+      }
+    }
+
     @media (min-width: 900px) {
+      .resumen-carrito-movil {
+        display: none;
+      }
+      .pos-layout.con-resumen-movil {
+        padding-bottom: 0;
+      }
       .pos-layout {
         display: grid;
         grid-template-columns: 1.15fr 0.85fr;
@@ -1083,7 +1144,7 @@ export class VentaComponent implements OnInit {
   // Estados del Catálogo
   cargandoCatalogo = signal<boolean>(true);
   platillos = signal<PlatilloDTO[]>([]);
-  filtroTexto = '';
+  filtroTexto = signal<string>(''); // signal: el computed platillosFiltrados debe recalcularse al escribir (H-02)
 
   // Estados del Carrito y Cotización
   carrito = signal<ItemCarrito[]>([]);
@@ -1108,9 +1169,11 @@ export class VentaComponent implements OnInit {
 
   // Platillos filtrados por búsqueda
   platillosFiltrados = computed(() => {
-    const query = this.filtroTexto.trim().toLowerCase();
+    // Comparación sin mayúsculas ni acentos («maiz» encuentra «maíz»)
+    const normalizar = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const query = normalizar(this.filtroTexto().trim());
     if (!query) return this.platillos();
-    return this.platillos().filter(p => p.nombre.toLowerCase().includes(query));
+    return this.platillos().filter(p => normalizar(p.nombre).includes(query));
   });
 
   ngOnInit(): void {
@@ -1185,6 +1248,15 @@ export class VentaComponent implements OnInit {
 
   estaEnCarrito(platilloId: number): boolean {
     return this.carrito().some(i => i.platillo.id === platilloId);
+  }
+
+  /** Total de piezas en el carrito, para el resumen móvil (H-09) */
+  totalArticulos = computed(() => this.carrito().reduce((suma, item) => suma + item.cantidad, 0));
+
+  /** Lleva la vista y el foco al carrito desde el resumen fijo (H-09) */
+  irAlCarrito(): void {
+    document.getElementById('seccion-carrito')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('titulo-carrito')?.focus({ preventScroll: true });
   }
 
   obtenerCantidadEnCarrito(platilloId: number): number {

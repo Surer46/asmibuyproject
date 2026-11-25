@@ -1,0 +1,72 @@
+{
+  "estado": "cumple umbral educativo",
+  "puntaje": 100,
+  "cobertura": "10/10 criterios aplicables completos",
+  "criterios": [
+    {
+      "id": "C1",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C2",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C3",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C4",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C5",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C6",
+      "puntaje": 10,
+      "cobertura": "8/8 cumplen; 20 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C7",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C8",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C9",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    },
+    {
+      "id": "C10",
+      "puntaje": 10,
+      "cobertura": "28/28 cumplen; 0 excluidas",
+      "pendiente": false
+    }
+  ],
+  "formula": "100 × promedio de proporciones de 10 criterios aplicables",
+  "razones": [],
+  "alcance": "a73287c7c4a6-movil, a73287c7c4a6-escritorio, login-validacion-movil, login-validacion-escritorio, login-error-movil, login-error-escritorio, venta-movil, venta-escritorio, venta-carrito-movil, venta-carrito-escritorio, venta-busqueda-vacia-movil, venta-busqueda-vacia-escritorio, avisos-movil, avisos-escritorio, historial-movil, historial-escritorio, gestion-insumos-movil, gestion-insumos-escritorio, gestion-platillos-movil, gestion-platillos-escritorio, gestion-movimientos-movil, gestion-movimientos-escritorio, gestion-promociones-movil, gestion-promociones-escritorio, gestion-modal-insumo-movil, gestion-modal-insumo-escritorio, venta-trabajador-movil, venta-trabajador-escritorio",
+  "version": "2.1.1",
+  "iteracion": 2
+}

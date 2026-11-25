@@ -16,7 +16,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="top-accent-line"></div>
         <div class="mobile-brand">
           <div class="mobile-brand-icon">
-            <span class="material-symbols-rounded">restaurant_menu</span>
+            <span aria-hidden="true" class="material-symbols-rounded">restaurant_menu</span>
           </div>
           <div class="mobile-brand-titles">
             <span class="mobile-brand-name">Asmibuy</span>
@@ -42,7 +42,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="top-accent-line"></div>
         <div class="brand">
           <div class="desktop-brand-icon">
-            <span class="material-symbols-rounded">restaurant_menu</span>
+            <span aria-hidden="true" class="material-symbols-rounded">restaurant_menu</span>
           </div>
           <span class="brand-text">Asmibuy</span>
           <span class="branch-tag">Sucursal Centro</span>
@@ -50,23 +50,23 @@ import { AuthService } from '../../services/auth.service';
 
         <nav class="desktop-links">
           <a routerLink="/venta" routerLinkActive="active" class="nav-item">
-            <span class="material-symbols-rounded">point_of_sale</span>
+            <span aria-hidden="true" class="material-symbols-rounded">point_of_sale</span>
             <span>Venta</span>
           </a>
 
           <a routerLink="/avisos" routerLinkActive="active" class="nav-item">
-            <span class="material-symbols-rounded">notifications</span>
+            <span aria-hidden="true" class="material-symbols-rounded">notifications</span>
             <span>Avisos</span>
           </a>
 
           <a routerLink="/historial" routerLinkActive="active" class="nav-item">
-            <span class="material-symbols-rounded">receipt_long</span>
+            <span aria-hidden="true" class="material-symbols-rounded">receipt_long</span>
             <span>Historial</span>
           </a>
 
           @if (authService.esAdmin()) {
             <a routerLink="/gestion" routerLinkActive="active" class="nav-item">
-              <span class="material-symbols-rounded">admin_panel_settings</span>
+              <span aria-hidden="true" class="material-symbols-rounded">admin_panel_settings</span>
               <span>Gestión</span>
             </a>
           }
@@ -79,8 +79,8 @@ import { AuthService } from '../../services/auth.service';
               {{ authService.usuarioActual()?.perfil }}
             </span>
           </div>
-          <button (click)="logout()" class="btn-logout" title="Cerrar Sesión">
-            <span class="material-symbols-rounded">logout</span>
+          <button type="button" (click)="logout()" class="btn-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <span aria-hidden="true" class="material-symbols-rounded">logout</span>
           </button>
         </div>
       </header>
@@ -89,21 +89,21 @@ import { AuthService } from '../../services/auth.service';
       <nav class="bottom-nav-mobile" aria-label="Navegación principal móvil">
         <a routerLink="/venta" routerLinkActive="active" class="mobile-tab" title="Punto de Venta">
           <div class="tab-icon-wrap">
-            <span class="material-symbols-rounded">point_of_sale</span>
+            <span aria-hidden="true" class="material-symbols-rounded">point_of_sale</span>
           </div>
           <span class="tab-label">Venta</span>
         </a>
 
         <a routerLink="/avisos" routerLinkActive="active" class="mobile-tab" title="Avisos de Stock">
           <div class="tab-icon-wrap">
-            <span class="material-symbols-rounded">notifications</span>
+            <span aria-hidden="true" class="material-symbols-rounded">notifications</span>
           </div>
           <span class="tab-label">Avisos</span>
         </a>
 
         <a routerLink="/historial" routerLinkActive="active" class="mobile-tab" title="Historial">
           <div class="tab-icon-wrap">
-            <span class="material-symbols-rounded">receipt_long</span>
+            <span aria-hidden="true" class="material-symbols-rounded">receipt_long</span>
           </div>
           <span class="tab-label">Historial</span>
         </a>
@@ -111,15 +111,15 @@ import { AuthService } from '../../services/auth.service';
         @if (authService.esAdmin()) {
           <a routerLink="/gestion" routerLinkActive="active" class="mobile-tab" title="Gestión">
             <div class="tab-icon-wrap">
-              <span class="material-symbols-rounded">admin_panel_settings</span>
+              <span aria-hidden="true" class="material-symbols-rounded">admin_panel_settings</span>
             </div>
             <span class="tab-label">Gestión</span>
           </a>
         }
 
-        <button (click)="logout()" class="mobile-tab tab-btn" aria-label="Cerrar Sesión" title="Cerrar Sesión">
+        <button type="button" (click)="logout()" class="mobile-tab tab-btn" title="Cerrar sesión">
           <div class="tab-icon-wrap icon-logout">
-            <span class="material-symbols-rounded">logout</span>
+            <span aria-hidden="true" class="material-symbols-rounded">logout</span>
           </div>
           <span class="tab-label">Salir</span>
         </button>

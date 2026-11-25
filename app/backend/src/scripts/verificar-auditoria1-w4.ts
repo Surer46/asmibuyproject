@@ -419,7 +419,8 @@ async function probarHallazgo8FiltroFechasPeriodo() {
   console.log('\n📅 7. Filtro por Periodo y Cierre de Día Inclusivo (Media W4-04):');
 
   // La orden creada hoy debe aparecer si filtramos con fechaInicio y fechaFin iguales a la fecha de hoy
-  const hoyStr = new Date().toISOString().split('T')[0];
+  const zonaNegocio = process.env.BUSINESS_TIME_ZONE || 'America/Mexico_City';
+  const hoyStr = new Intl.DateTimeFormat('en-CA', { timeZone: zonaNegocio, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const historial = await VentasService.listarHistorial(
     { fechaInicio: hoyStr, fechaFin: hoyStr },
     1,

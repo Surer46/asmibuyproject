@@ -55,9 +55,7 @@ export class AuthService {
         if (res.csrfToken) {
           this.csrfToken.set(res.csrfToken);
         }
-        if (this.router.url.includes('/login') || this.router.url === '/') {
-          this.router.navigate(['/venta']);
-        }
+        // La redirección desde /login la resuelve guestGuard tras esperar esta verificación (H-03)
       } else {
         this.usuarioActual.set(null);
       }
@@ -102,10 +100,19 @@ export class AuthService {
           if (res.csrfToken) {
             this.csrfToken.set(res.csrfToken);
           }
-          this.router.navigate(['/venta']);
+          // Volver a la pantalla que se pidió antes del login (?volver=/historial), sólo si es interna (H-03)
+          const volver = this.router.parseUrl(this.router.url).queryParamMap.get('volver');
+          this.router.navigateByUrl(this.rutaInternaSegura(volver));
         }
       })
     );
+  }
+
+  private rutaInternaSegura(url: string | null): string {
+    if (!url || !url.startsWith('/') || url.startsWith('//') || url.startsWith('/\\') || url.startsWith('/login')) {
+      return '/venta';
+    }
+    return url;
   }
 
   /**

@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DialogoModalDirective } from '../../directives/dialogo-modal.directive';
+import { EtiquetaEstadoPipe, CantidadPipe } from '../../pipes/formato-inventario.pipe';
 import {
   InventarioApiService,
   IngredienteDTO,
@@ -20,7 +22,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-gestion',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogoModalDirective, EtiquetaEstadoPipe, CantidadPipe],
   template: `
     <div class="app-container">
       <!-- Encabezado Cupertino -->
@@ -33,12 +35,12 @@ import { AuthService } from '../../services/auth.service';
 
       <!-- Notificaciones de éxito y error en vista principal -->
       <div *ngIf="mensajeExito() && !algunModalAbierto()" class="notificacion notif-exito" role="status">
-        <span class="material-symbols-rounded">check_circle</span>
+        <span aria-hidden="true" class="material-symbols-rounded">check_circle</span>
         <span>{{ mensajeExito() }}</span>
       </div>
 
       <div *ngIf="mensajeError() && !algunModalAbierto()" class="notificacion notif-error" role="alert">
-        <span class="material-symbols-rounded">error</span>
+        <span aria-hidden="true" class="material-symbols-rounded">error</span>
         <span>{{ mensajeError() }}</span>
       </div>
 
@@ -49,7 +51,7 @@ import { AuthService } from '../../services/auth.service';
           [attr.aria-selected]="tabActiva() === 'ingredientes'"
           [class.activo]="tabActiva() === 'ingredientes'"
           (click)="tabActiva.set('ingredientes')">
-          <span class="material-symbols-rounded">egg</span>
+          <span aria-hidden="true" class="material-symbols-rounded">egg</span>
           Insumos ({{ ingredientes().length }})
         </button>
         <button
@@ -57,7 +59,7 @@ import { AuthService } from '../../services/auth.service';
           [attr.aria-selected]="tabActiva() === 'platillos'"
           [class.activo]="tabActiva() === 'platillos'"
           (click)="tabActiva.set('platillos')">
-          <span class="material-symbols-rounded">lunch_dining</span>
+          <span aria-hidden="true" class="material-symbols-rounded">lunch_dining</span>
           Platillos ({{ platillos().length }})
         </button>
         <button
@@ -65,7 +67,7 @@ import { AuthService } from '../../services/auth.service';
           [attr.aria-selected]="tabActiva() === 'movimientos'"
           [class.activo]="tabActiva() === 'movimientos'"
           (click)="tabActiva.set('movimientos')">
-          <span class="material-symbols-rounded">history</span>
+          <span aria-hidden="true" class="material-symbols-rounded">history</span>
           Movimientos
         </button>
         <button
@@ -73,7 +75,7 @@ import { AuthService } from '../../services/auth.service';
           [attr.aria-selected]="tabActiva() === 'promociones'"
           [class.activo]="tabActiva() === 'promociones'"
           (click)="tabActiva.set('promociones')">
-          <span class="material-symbols-rounded">loyalty</span>
+          <span aria-hidden="true" class="material-symbols-rounded">loyalty</span>
           Promociones ({{ promociones().length }})
         </button>
       </div>
@@ -85,7 +87,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="toolbar">
           <span class="seccion-titulo">Insumos y Mínimos de Stock</span>
           <button class="btn-cupertino btn-naranja" (click)="abrirModalIngrediente()">
-            <span class="material-symbols-rounded">add</span>
+            <span aria-hidden="true" class="material-symbols-rounded">add</span>
             Nuevo Insumo
           </button>
         </div>
@@ -95,7 +97,7 @@ import { AuthService } from '../../services/auth.service';
         </div>
 
         <div *ngIf="!cargando() && ingredientes().length === 0" class="empty-state card-cupertino">
-          <span class="material-symbols-rounded icon-grande">inventory_2</span>
+          <span aria-hidden="true" class="material-symbols-rounded icon-grande">inventory_2</span>
           <p>No hay insumos registrados en el catálogo.</p>
         </div>
 
@@ -111,19 +113,19 @@ import { AuthService } from '../../services/auth.service';
                     'badge-amarillo': ing.estadoStock === 'BAJO_STOCK',
                     'badge-verde': ing.estadoStock === 'NORMAL'
                   }">
-                  {{ ing.estadoStock }}
+                  {{ ing.estadoStock | etiquetaEstado }}
                 </span>
                 <span *ngIf="!ing.activo" class="badge badge-inactivo">INACTIVO</span>
               </div>
               <div class="fila-detalles">
                 <span>Unidad: <strong>{{ ing.unidad }}</strong></span>
-                <span>Existencia: <strong>{{ ing.existencia }} {{ ing.unidad }}</strong></span>
-                <span>Mínimo: <strong>{{ ing.minimo }} {{ ing.unidad }}</strong></span>
+                <span>Existencia: <strong>{{ ing.existencia | cantidad: ing.unidad }}</strong></span>
+                <span>Mínimo: <strong>{{ ing.minimo | cantidad: ing.unidad }}</strong></span>
               </div>
             </div>
             <div class="fila-acciones">
-              <button class="btn-icon" (click)="editarIngrediente(ing)" title="Editar insumo">
-                <span class="material-symbols-rounded">edit</span>
+              <button type="button" class="btn-icon" (click)="editarIngrediente(ing)" [attr.aria-label]="'Editar ' + ing.nombre" [title]="'Editar ' + ing.nombre">
+                <span aria-hidden="true" class="material-symbols-rounded">edit</span>
               </button>
             </div>
           </div>
@@ -137,7 +139,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="toolbar">
           <span class="seccion-titulo">Catálogo de Platillos y Recetas</span>
           <button class="btn-cupertino btn-naranja" (click)="abrirModalPlatillo()">
-            <span class="material-symbols-rounded">add</span>
+            <span aria-hidden="true" class="material-symbols-rounded">add</span>
             Nuevo Platillo
           </button>
         </div>
@@ -147,7 +149,7 @@ import { AuthService } from '../../services/auth.service';
         </div>
 
         <div *ngIf="!cargando() && platillos().length === 0" class="empty-state card-cupertino">
-          <span class="material-symbols-rounded icon-grande">restaurant_menu</span>
+          <span aria-hidden="true" class="material-symbols-rounded icon-grande">restaurant_menu</span>
           <p>No hay platillos dados de alta.</p>
         </div>
 
@@ -166,14 +168,14 @@ import { AuthService } from '../../services/auth.service';
                 <span *ngIf="!plat.ingredientes || plat.ingredientes.length === 0" class="receta-vacia">Sin ingredientes configurados</span>
                 <div class="receta-tags" *ngIf="plat.ingredientes && plat.ingredientes.length > 0">
                   <span *ngFor="let item of plat.ingredientes" class="receta-item-chip">
-                    {{ item.nombreIngrediente }}: {{ item.cantidad }} {{ item.unidad }}
+                    {{ item.nombreIngrediente }}: {{ item.cantidad | cantidad: item.unidad }}
                   </span>
                 </div>
               </div>
             </div>
             <div class="fila-acciones">
-              <button class="btn-icon" (click)="editarPlatillo(plat)" title="Editar receta">
-                <span class="material-symbols-rounded">edit</span>
+              <button type="button" class="btn-icon" (click)="editarPlatillo(plat)" [attr.aria-label]="'Editar receta de ' + plat.nombre" [title]="'Editar receta de ' + plat.nombre">
+                <span aria-hidden="true" class="material-symbols-rounded">edit</span>
               </button>
             </div>
           </div>
@@ -188,11 +190,11 @@ import { AuthService } from '../../services/auth.service';
           <span class="seccion-titulo">Kárdex de Movimientos de Inventario</span>
           <div class="btn-group-acciones">
             <button class="btn-cupertino btn-verde" (click)="abrirModalEntrada()">
-              <span class="material-symbols-rounded">add_circle</span>
+              <span aria-hidden="true" class="material-symbols-rounded">add_circle</span>
               Entrada
             </button>
             <button class="btn-cupertino btn-amarillo" (click)="abrirModalAjuste()">
-              <span class="material-symbols-rounded">tune</span>
+              <span aria-hidden="true" class="material-symbols-rounded">tune</span>
               Ajuste / Merma
             </button>
           </div>
@@ -213,11 +215,11 @@ import { AuthService } from '../../services/auth.service';
                     'badge-amarillo': mov.tipo === 'AJUSTE',
                     'badge-rojo': mov.tipo === 'CONSUMO_VENTA'
                   }">
-                  {{ mov.tipo }}
+                  {{ mov.tipo | etiquetaEstado }}
                 </span>
                 <span class="item-nombre">{{ mov.nombreIngrediente }}</span>
                 <span class="mov-cantidad" [ngClass]="{ 'cant-positiva': mov.cantidad.startsWith('+'), 'cant-negativa': mov.cantidad.startsWith('-') }">
-                  {{ mov.cantidad }} {{ mov.unidad }}
+                  {{ mov.cantidad | cantidad: mov.unidad }}
                 </span>
               </div>
               <div class="fila-detalles">
@@ -238,18 +240,18 @@ import { AuthService } from '../../services/auth.service';
         <div class="toolbar">
           <span class="seccion-titulo">Reglas de Promociones y Descuentos</span>
           <button class="btn-cupertino btn-morado" (click)="abrirModalPromocion()">
-            <span class="material-symbols-rounded">add</span>
+            <span aria-hidden="true" class="material-symbols-rounded">add</span>
             Nueva Promoción
           </button>
         </div>
 
         <div *ngIf="cargando()" class="loading-state">
-          <span class="material-symbols-rounded icon-grande spin">progress_activity</span>
+          <span aria-hidden="true" class="material-symbols-rounded icon-grande spin">progress_activity</span>
           <p>Cargando promociones...</p>
         </div>
 
         <div *ngIf="!cargando() && promociones().length === 0" class="empty-state card-cupertino">
-          <span class="material-symbols-rounded icon-grande">loyalty</span>
+          <span aria-hidden="true" class="material-symbols-rounded icon-grande">loyalty</span>
           <p>No hay promociones registradas aún.</p>
           <button class="btn-cupertino btn-morado btn-sm" (click)="abrirModalPromocion()">
             Crear Primera Promoción
@@ -296,9 +298,9 @@ import { AuthService } from '../../services/auth.service';
               <button
                 class="btn-icon"
                 (click)="abrirModalEditarPromocion(promo)"
-                title="Editar Promoción"
-                aria-label="Editar">
-                <span class="material-symbols-rounded">edit</span>
+                [title]="'Editar ' + promo.nombre"
+                [attr.aria-label]="'Editar ' + promo.nombre">
+                <span aria-hidden="true" class="material-symbols-rounded">edit</span>
               </button>
 
               <button
@@ -306,16 +308,16 @@ import { AuthService } from '../../services/auth.service';
                 [ngClass]="{ 'btn-peligro': promo.estado === 'ACTIVA' }"
                 (click)="conmutarEstadoPromocion(promo)"
                 [title]="promo.estado === 'ACTIVA' ? 'Pausar Promoción' : 'Activar Promoción'"
-                [attr.aria-label]="promo.estado === 'ACTIVA' ? 'Pausar' : 'Activar'">
-                <span class="material-symbols-rounded">{{ promo.estado === 'ACTIVA' ? 'pause_circle' : 'play_circle' }}</span>
+                [attr.aria-label]="(promo.estado === 'ACTIVA' ? 'Pausar ' : 'Activar ') + promo.nombre">
+                <span aria-hidden="true" class="material-symbols-rounded">{{ promo.estado === 'ACTIVA' ? 'pause_circle' : 'play_circle' }}</span>
               </button>
 
               <button
                 class="btn-icon btn-peligro"
                 (click)="confirmarRetiroPromocion(promo)"
                 title="Retirar definitivamente"
-                aria-label="Retirar">
-                <span class="material-symbols-rounded">archive</span>
+                [attr.aria-label]="'Retirar ' + promo.nombre">
+                <span aria-hidden="true" class="material-symbols-rounded">archive</span>
               </button>
             </div>
 
@@ -330,13 +332,13 @@ import { AuthService } from '../../services/auth.service';
       <!-- MODAL: FORMULARIO DE INGREDIENTE                              -->
       <!-- ============================================================= -->
       <div *ngIf="mostrarModalIngrediente()" class="modal-overlay">
-        <div class="modal-card card-cupertino">
+        <div class="modal-card card-cupertino" appDialogoModal aria-labelledby="titulo-modal-ingrediente" (cerrar)="cerrarModales()">
           <div class="modal-header">
-            <h3>{{ modoEdicionIngrediente() ? 'Editar Insumo' : 'Nuevo Insumo' }}</h3>
-            <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+            <h3 id="titulo-modal-ingrediente">{{ modoEdicionIngrediente() ? 'Editar Insumo' : 'Nuevo Insumo' }}</h3>
+            <button type="button" class="btn-cerrar" (click)="cerrarModales()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           </div>
           <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
             <span>{{ mensajeError() }}</span>
           </div>
           <form (ngSubmit)="guardarIngrediente()">
@@ -404,13 +406,13 @@ import { AuthService } from '../../services/auth.service';
       <!-- MODAL: FORMULARIO DE PLATILLO Y RECETA                        -->
       <!-- ============================================================= -->
       <div *ngIf="mostrarModalPlatillo()" class="modal-overlay">
-        <div class="modal-card card-cupertino modal-ancho">
+        <div class="modal-card card-cupertino modal-ancho" appDialogoModal aria-labelledby="titulo-modal-platillo" (cerrar)="cerrarModales()">
           <div class="modal-header">
-            <h3>{{ modoEdicionPlatillo() ? 'Editar Platillo y Receta' : 'Nuevo Platillo' }}</h3>
-            <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+            <h3 id="titulo-modal-platillo">{{ modoEdicionPlatillo() ? 'Editar Platillo y Receta' : 'Nuevo Platillo' }}</h3>
+            <button type="button" class="btn-cerrar" (click)="cerrarModales()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           </div>
           <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
             <span>{{ mensajeError() }}</span>
           </div>
           <form (ngSubmit)="guardarPlatillo()">
@@ -453,7 +455,7 @@ import { AuthService } from '../../services/auth.service';
               <div class="receta-header-row">
                 <h4>Ingredientes de la Receta (Al menos uno obligatorio)</h4>
                 <button type="button" class="btn-cupertino btn-secundario btn-sm" (click)="agregarFilaReceta()">
-                  <span class="material-symbols-rounded">add</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">add</span>
                   Agregar Insumo
                 </button>
               </div>
@@ -479,8 +481,8 @@ import { AuthService } from '../../services/auth.service';
                     class="input-cupertino" />
                 </div>
                 <div class="col-btn">
-                  <button type="button" class="btn-icon btn-peligro" (click)="removerFilaReceta(i)" title="Quitar">
-                    <span class="material-symbols-rounded">delete</span>
+                  <button type="button" class="btn-icon btn-peligro" (click)="removerFilaReceta(i)" title="Quitar ingrediente" [attr.aria-label]="'Quitar ingrediente ' + (i + 1) + ' de la receta'">
+                    <span aria-hidden="true" class="material-symbols-rounded">delete</span>
                   </button>
                 </div>
               </div>
@@ -500,13 +502,13 @@ import { AuthService } from '../../services/auth.service';
       <!-- MODAL: REGISTRAR ENTRADA                                      -->
       <!-- ============================================================= -->
       <div *ngIf="mostrarModalEntrada()" class="modal-overlay">
-        <div class="modal-card card-cupertino">
+        <div class="modal-card card-cupertino" appDialogoModal aria-labelledby="titulo-modal-entrada" (cerrar)="cerrarModales()">
           <div class="modal-header">
-            <h3>Registrar Entrada de Almacén</h3>
-            <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+            <h3 id="titulo-modal-entrada">Registrar Entrada de Almacén</h3>
+            <button type="button" class="btn-cerrar" (click)="cerrarModales()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           </div>
           <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
             <span>{{ mensajeError() }}</span>
           </div>
           <form (ngSubmit)="guardarEntrada()">
@@ -515,7 +517,7 @@ import { AuthService } from '../../services/auth.service';
               <select id="ent-ing" [(ngModel)]="formEntrada.ingredienteId" name="entIng" required class="input-cupertino">
                 <option [ngValue]="0" disabled>Selecciona insumo...</option>
                 <option *ngFor="let ing of ingredientesActivos()" [ngValue]="ing.id">
-                  {{ ing.nombre }} (Existencia actual: {{ ing.existencia }} {{ ing.unidad }})
+                  {{ ing.nombre }} (Existencia actual: {{ ing.existencia | cantidad: ing.unidad }})
                 </option>
               </select>
             </div>
@@ -555,13 +557,13 @@ import { AuthService } from '../../services/auth.service';
       <!-- MODAL: REGISTRAR AJUSTE / MERMA                               -->
       <!-- ============================================================= -->
       <div *ngIf="mostrarModalAjuste()" class="modal-overlay">
-        <div class="modal-card card-cupertino">
+        <div class="modal-card card-cupertino" appDialogoModal aria-labelledby="titulo-modal-ajuste" (cerrar)="cerrarModales()">
           <div class="modal-header">
-            <h3>Registrar Ajuste / Merma de Inventario</h3>
-            <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+            <h3 id="titulo-modal-ajuste">Registrar Ajuste / Merma de Inventario</h3>
+            <button type="button" class="btn-cerrar" (click)="cerrarModales()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           </div>
           <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
             <span>{{ mensajeError() }}</span>
           </div>
           <form (ngSubmit)="guardarAjuste()">
@@ -570,7 +572,7 @@ import { AuthService } from '../../services/auth.service';
               <select id="aj-ing" [(ngModel)]="formAjuste.ingredienteId" name="ajIng" required class="input-cupertino">
                 <option [ngValue]="0" disabled>Selecciona insumo...</option>
                 <option *ngFor="let ing of ingredientesActivos()" [ngValue]="ing.id">
-                  {{ ing.nombre }} (Existencia actual: {{ ing.existencia }} {{ ing.unidad }})
+                  {{ ing.nombre }} (Existencia actual: {{ ing.existencia | cantidad: ing.unidad }})
                 </option>
               </select>
             </div>
@@ -612,13 +614,13 @@ import { AuthService } from '../../services/auth.service';
       <!-- MODAL: FORMULARIO DE PROMOCIÓN                                -->
       <!-- ============================================================= -->
       <div *ngIf="mostrarModalPromocion()" class="modal-overlay">
-        <div class="modal-card card-cupertino modal-ancho">
+        <div class="modal-card card-cupertino modal-ancho" appDialogoModal aria-labelledby="titulo-modal-promocion" (cerrar)="cerrarModales()">
           <div class="modal-header">
-            <h3>{{ modoEdicionPromocion() ? 'Editar Promoción' : 'Nueva Promoción' }}</h3>
-            <button class="btn-cerrar" (click)="cerrarModales()">✕</button>
+            <h3 id="titulo-modal-promocion">{{ modoEdicionPromocion() ? 'Editar Promoción' : 'Nueva Promoción' }}</h3>
+            <button type="button" class="btn-cerrar" (click)="cerrarModales()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           </div>
           <div *ngIf="mensajeError()" class="notificacion notif-error notif-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
             <span>{{ mensajeError() }}</span>
           </div>
 
@@ -979,7 +981,7 @@ import { AuthService } from '../../services/auth.service';
     /* Badges */
     .badge-inactivo {
       background: #f4f4f5;
-      color: #71717a;
+      color: #4b5563; /* texto secundario del sistema: 6.9:1 sobre #f4f4f5 (H-08) */
       border: 1px solid #e4e4e7;
     }
 

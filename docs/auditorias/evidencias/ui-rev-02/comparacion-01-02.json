@@ -1,0 +1,30 @@
+{
+  "resueltos": [
+    "H-01",
+    "H-02",
+    "H-03",
+    "H-04",
+    "H-05",
+    "H-06",
+    "H-07",
+    "H-08",
+    "H-09",
+    "H-10"
+  ],
+  "persistentes": [],
+  "nuevos": [],
+  "regresiones": [],
+  "alcance_equivalente": true,
+  "antes": {
+    "version": "2.1.0 · commit a7d3720",
+    "puntaje": 79.3,
+    "estado": "pendiente",
+    "cobertura": "10/10 criterios aplicables completos"
+  },
+  "despues": {
+    "version": "2.1.1",
+    "puntaje": 100,
+    "estado": "cumple umbral educativo",
+    "cobertura": "10/10 criterios aplicables completos"
+  }
+}

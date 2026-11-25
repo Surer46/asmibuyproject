@@ -1,12 +1,13 @@
 import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { EtiquetaEstadoPipe, CantidadPipe } from '../../pipes/formato-inventario.pipe';
 import { InventarioApiService, AvisoStockDTO } from '../../services/inventario.service';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-avisos',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, EtiquetaEstadoPipe, CantidadPipe],
   template: `
     <div class="app-container">
       <div class="view-header">
@@ -15,7 +16,7 @@ import { AuthService } from '../../services/auth.service';
           <p class="subtitle">Condición actual de ingredientes y existencias críticas</p>
         </div>
         <button (click)="recargarAvisos()" class="btn-cupertino btn-secundario btn-sm" [disabled]="cargando()">
-          <span class="material-symbols-rounded" [class.icono-rotando]="cargando()">refresh</span>
+          <span aria-hidden="true" class="material-symbols-rounded" [class.icono-rotando]="cargando()">refresh</span>
           <span>{{ cargando() ? 'Consultando...' : 'Actualizar' }}</span>
         </button>
       </div>
@@ -27,7 +28,7 @@ import { AuthService } from '../../services/auth.service';
 
       <!-- Estado vacío -->
       <div *ngIf="!cargando() && avisos().length === 0" class="empty-state card-cupertino">
-        <span class="material-symbols-rounded icon-grande">inventory</span>
+        <span aria-hidden="true" class="material-symbols-rounded icon-grande">inventory</span>
         <p>No se encontraron insumos registrados en el inventario.</p>
       </div>
 
@@ -45,7 +46,7 @@ import { AuthService } from '../../services/auth.service';
             [class.bg-rojo]="aviso.estadoStock === 'AGOTADO'"
             [class.bg-amarillo]="aviso.estadoStock === 'BAJO_STOCK'"
             [class.bg-verde]="aviso.estadoStock === 'NORMAL'">
-            <span class="material-symbols-rounded">
+            <span aria-hidden="true" class="material-symbols-rounded">
               {{ aviso.estadoStock === 'AGOTADO' ? 'error' : aviso.estadoStock === 'BAJO_STOCK' ? 'warning' : 'check_circle' }}
             </span>
           </div>
@@ -53,16 +54,16 @@ import { AuthService } from '../../services/auth.service';
           <div class="aviso-details">
             <h4>{{ aviso.nombre }}</h4>
             <p class="stock-info">
-              Existencia actual: <strong>{{ aviso.existencia }} {{ aviso.unidad }}</strong>
+              Existencia actual: <strong>{{ aviso.existencia | cantidad: aviso.unidad }}</strong>
               <span class="separador">|</span>
-              Mínimo obligatorio: <strong>{{ aviso.minimo }} {{ aviso.unidad }}</strong>
+              Mínimo obligatorio: <strong>{{ aviso.minimo | cantidad: aviso.unidad }}</strong>
             </p>
           </div>
 
           <div class="aviso-badge">
-            <span *ngIf="aviso.estadoStock === 'AGOTADO'" class="badge badge-rojo">AGOTADO</span>
-            <span *ngIf="aviso.estadoStock === 'BAJO_STOCK'" class="badge badge-amarillo">BAJO STOCK</span>
-            <span *ngIf="aviso.estadoStock === 'NORMAL'" class="badge badge-verde">NORMAL</span>
+            <span *ngIf="aviso.estadoStock === 'AGOTADO'" class="badge badge-rojo">{{ aviso.estadoStock | etiquetaEstado }}</span>
+            <span *ngIf="aviso.estadoStock === 'BAJO_STOCK'" class="badge badge-amarillo">{{ aviso.estadoStock | etiquetaEstado }}</span>
+            <span *ngIf="aviso.estadoStock === 'NORMAL'" class="badge badge-verde">{{ aviso.estadoStock | etiquetaEstado }}</span>
           </div>
         </div>
       </div>
