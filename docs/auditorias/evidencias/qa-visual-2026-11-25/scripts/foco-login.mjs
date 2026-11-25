@@ -1,0 +1,17 @@
+import { chromium, EDGE, BASE, abrir, captura, check, guardarRegistro, esperar } from './lib.mjs';
+const browser = await chromium.launch({ headless: true, executablePath: EDGE });
+const p = await abrir(browser, 'escritorio');
+await p.goto(BASE + '/login');
+await esperar(800);
+const estilo = () => p.evaluate(() => { const e = document.activeElement; const cs = getComputedStyle(e); return { id: e.id || e.tagName, borde: cs.borderColor, sombra: cs.boxShadow, contorno: `${cs.outlineStyle} ${cs.outlineWidth}` }; });
+const reposo = await p.locator('#correo').evaluate(e => { const cs = getComputedStyle(e); return { borde: cs.borderColor, sombra: cs.boxShadow }; });
+await p.keyboard.press('Tab'); await esperar(500);
+const correo = await estilo();
+await captura(p, 'cw18-foco-correo', false);
+await p.keyboard.press('Tab'); await esperar(500);
+const pass = await estilo();
+await captura(p, 'cw18-foco-password', false);
+const visible = s => s.borde !== reposo.borde || (s.sombra !== 'none' && s.sombra !== reposo.sombra) || !s.contorno.startsWith('none');
+check('CW-18', 'escritorio', visible(correo) && visible(pass), `Foco en login (tras la transición CSS): reposo borde ${reposo.borde}/sombra ${reposo.sombra}; #correo borde ${correo.borde}, sombra ${correo.sombra}; #password borde ${pass.borde}, sombra ${pass.sombra}`);
+guardarRegistro('resultados-fase-c-foco.json');
+await browser.close();

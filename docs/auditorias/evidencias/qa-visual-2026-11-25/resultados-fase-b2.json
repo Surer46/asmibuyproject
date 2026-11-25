@@ -1,0 +1,86 @@
+[
+  {
+    "cw": "CW-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Promoción B antes del inicio (8:24:39 a.m. < 8:28:00 a.m.): total $100.00, sin descuento"
+  },
+  {
+    "cw": "CW-15",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Tras renombrar a \"Hamburguesa Doble\", precio 150 y carne 200 g: la venta ORD-00001 conserva \"Hamburguesa\" a 100.00, total 200.00 y consumo de carne 300 g; detalle UI: \"receipt Comprobante de Venta Folio: ORD-00001 CONFIRMADA Fecha y Hora: 25 nov 2026, 8:22 a.m. Cajero: Trabajador QA 1 Método de Pago: EFECTIVO Platillo Cant. P.…\""
+  },
+  {
+    "cw": "CW-16",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Orden ORD-00002 ANULADA por admin.qa@asmibuy.test con motivo \"Cliente canceló el pedido (QA)\"; Pan sin reintegro (40→40); Total vigente $1270.00 → $1100.00"
+  },
+  {
+    "cw": "CW-16",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Repetir la anulación → HTTP 200; motivo, autor y fecha sin cambios (\"Cliente canceló el pedido (QA)\"); sin reintegro"
+  },
+  {
+    "cw": "CW-16",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Trabajador: 0 botones «Anular Venta» en Historial; petición directa → HTTP 403"
+  },
+  {
+    "cw": "CW-07",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Doble clic en Confirmar: órdenes 7 → 8 (una sola)"
+  },
+  {
+    "cw": "CW-07",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Respuesta perdida: aviso \"warning Resultado incierto. Verifica o reintenta la misma operación antes de iniciar otra venta.\"; banner de pendiente visible true y tras recargar true; Verificar → \"check_circle Venta previa ORD-00009 recuperada con éxito.\"; órdenes 8 → 9, folio ORD-00009"
+  },
+  {
+    "cw": "CW-07",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Misma clave con otro contenido → HTTP 409 IDEMPOTENCIA_CONFLICTO; sin orden nueva"
+  },
+  {
+    "cw": "CW-06",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Dos cajas con 1 pan: 1 venta confirmada; mensajes caja 1 \"check_circle Venta ORD-00010 confirmada con éxito.\", caja 2 \"error Stock insuficiente en inventario: uno o más insumos de la receta no alcanzan para cubrir la orden. La venta fue cancelada sin cargos ni registros.\"; Pan 0; ingredientes negativos 0"
+  },
+  {
+    "cw": "CW-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Torta 15% desactivada → 2 Tortas $200.00, sin descuento"
+  },
+  {
+    "cw": "CW-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Reactivada → descuento -$30.00"
+  },
+  {
+    "cw": "CW-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Retirada: sin descuento ($200.00); la fila no ofrece editar ni reactivar (0 botones)"
+  },
+  {
+    "cw": "CW-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Dentro de la vigencia (8:28:06 a.m., inicio 8:28:00 a.m.): -$50.00 → $50.00"
+  },
+  {
+    "cw": "CW-10",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Después del fin (8:30:06 a.m., fin 8:30:00 a.m.): $100.00, sin descuento"
+  }
+]

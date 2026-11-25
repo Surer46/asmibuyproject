@@ -1,0 +1,7 @@
+[
+  {"cw":"DATOS","vista":"escritorio","ok":true,"detalle":"insumos creados desde la UI: Pan pieza min 20, Carne g min 2000, Queso pieza min 5, Lechuga g min 100, Refresco lata pieza min 5, Papa g min 500, Agua botella pieza min 5, Salchicha pieza min 5, Tortilla pieza min 10"},
+  {"cw":"CW-04","vista":"escritorio","ok":true,"detalle":"Pan: inicial 30 + entrada 10 - ajuste 5 = 35 (esperado 35)"},
+  {"cw":"CW-04","vista":"escritorio","ok":true,"detalle":"Ajuste de -1000 rechazado: \"El ajuste solicitado (-1000) supera las existencias disponibles (35 pieza). El stock nunca puede ser negativo.\"; saldo sigue en 35"},
+  {"cw":"CW-04","vista":"escritorio","ok":true,"detalle":"Movimientos de Pan con autor y motivo: ENTRADA 30 \"Stock inicial QA visual\"; ENTRADA 10 \"Compra panadería QA\"; AJUSTE -5 \"Merma por caducidad QA\"; todos por admin.qa@asmibuy.test"},
+  {"cw":"CW-04","vista":"escritorio","ok":true,"detalle":"Ningún saldo negativo; el saldo se calcula como suma de movimientos"}
+]

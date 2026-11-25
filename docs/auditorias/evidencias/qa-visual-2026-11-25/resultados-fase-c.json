@@ -1,0 +1,92 @@
+[
+  {
+    "cw": "QA-L-01",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "A 360×780 con el error visible, el botón «Entrar al Sistema» queda dentro de la pantalla sin desplazarse"
+  },
+  {
+    "cw": "CW-17",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Botón Atrás: avisos → /historial → /venta"
+  },
+  {
+    "cw": "CW-17",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Trabajador: enlaces a Gestión visibles = 0"
+  },
+  {
+    "cw": "CW-17",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Recorrido completo (11 pantallas): desbordamiento horizontal en [ninguna]"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "axe (WCAG 2.x A/AA) en 11 pantallas: sin violaciones"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Fuentes cargadas: Roboto=true, Material Symbols Rounded=true; body: Roboto, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI\", sans-serif"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "movil",
+    "ok": false,
+    "detalle": "Objetivos táctiles < 44×44 px a 360 px: \"Agregar Agua al carrito\" 298×42; \"Agregar Hamburguesa Doble al c\" 298×42; \"Agregar Hot dog al carrito\" 298×42; \"Agregar Papas al carrito\" 298×42; \"Agregar Refresco al carrito\" 298×42; \"Agregar Taco al carrito\" 298×42; \"Agregar Torta al carrito\" 298×42; \"Vaciar carrito\" 82×36; \"Restar uno a Refresco\" 38×38; \"Sumar uno a Refresco\" 38×38; \"refresh\nActualizar\" 124×38; \"INPUT\" 143×40; \"Filtrar\" 64×38; \"visibility\nVer Comprobante\" 169×38; \"Editar Agua botella\" 40×40; \"Editar Carne\" 40×40; \"Editar Lechuga\" 40×40; \"Editar Pan\" 40×40; \"Editar Papa\" 40×40; \"Editar Queso\" 40×40; \"Editar Refresco lata\" 40×40; \"Editar Salchicha\" 40×40; \"Editar Tortilla\" 40×40; \"Editar receta de Agua\" 40×40; \"Editar receta de Ensalada\" 40×40; \"Editar receta de Hamburguesa D\" 40×40; \"Editar receta de Hot dog\" 40×40; \"Editar receta de Papas\" 40×40; \"Editar receta de Refresco\" 40×40; \"Editar receta de Taco\" 40×40; \"Editar receta de Torta\" 40×40; \"Editar Agua gratis\" 40×40; \"Pausar Agua gratis\" 40×40; \"Retirar Agua gratis\" 40×40; \"Editar Refresco 2x1\" 40×40; \"Pausar Refresco 2x1\" 40×40; \"Retirar Refresco 2x1\" 40×40; \"Editar Papas 3x1\" 40×40; \"Pausar Papas 3x1\" 40×40; \"Retirar Papas 3x1\" 40×40; \"Editar Hot dog 10%\" 40×40; \"Pausar Hot dog 10%\" 40×40; \"Retirar Hot dog 10%\" 40×40; \"Editar Hot dog 20% A\" 40×40; \"Pausar Hot dog 20% A\" 40×40; \"Retirar Hot dog 20% A\" 40×40; \"Editar Hot dog 20% B\" 40×40; \"Pausar Hot dog 20% B\" 40×40; \"Retirar Hot dog 20% B\" 40×40; \"Editar Taco temporal 50%\" 40×40; \"Pausar Taco temporal 50%\" 40×40; \"Retirar Taco temporal 50%\" 40×40; \"Editar Taco temporal 50% B\" 40×40; \"Pausar Taco temporal 50% B\" 40×40; \"Retirar Taco temporal 50% B\" 40×40; \"Cerrar\" 25×35"
+  },
+  {
+    "cw": "CW-17",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Botón Atrás: avisos → /historial → /venta"
+  },
+  {
+    "cw": "CW-17",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Trabajador: enlaces a Gestión visibles = 0"
+  },
+  {
+    "cw": "CW-17",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Recorrido completo (11 pantallas): desbordamiento horizontal en [ninguna]"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "axe (WCAG 2.x A/AA) en 11 pantallas: sin violaciones"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Fuentes cargadas: Roboto=true, Material Symbols Rounded=true; body: Roboto, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI\", sans-serif"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "escritorio",
+    "ok": false,
+    "detalle": "Tab en login: correo (SIN foco visible) → password (SIN foco visible) → Ver contraseña (foco visible) → restaurant_menu\nAsmibuy\n\n (foco visible); Enter envía el formulario"
+  },
+  {
+    "cw": "CW-18",
+    "vista": "zoom200",
+    "ok": true,
+    "detalle": "Zoom 200 % (equivalente 640×400 CSS px, escala 2): desbordamiento horizontal en [ninguna]"
+  },
+  {
+    "cw": "ENTORNO",
+    "vista": "-",
+    "ok": true,
+    "detalle": "Microsoft Edge 158.0.4370.33 (Chromium) controlado con Playwright; Windows 11; vistas 360×780 y 1280×800"
+  }
+]

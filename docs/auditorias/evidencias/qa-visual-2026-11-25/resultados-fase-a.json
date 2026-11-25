@@ -1,0 +1,74 @@
+[
+  {
+    "cw": "DATOS",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "insumos creados desde la UI: Pan pieza min 20, Carne g min 2000, Queso pieza min 5, Lechuga g min 100, Refresco lata pieza min 5, Papa g min 500, Agua botella pieza min 5, Salchicha pieza min 5, Tortilla pieza min 10"
+  },
+  {
+    "cw": "CW-03",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Guardar recetas no cambia saldos: {\"Pan\":35,\"Carne\":4500,\"Queso\":30,\"Lechuga\":500}"
+  },
+  {
+    "cw": "CW-03",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Platillo sin ingredientes no se guarda; mensaje/validación: \"error Debes agregar al menos un insumo con cantidad válida en la receta.\""
+  },
+  {
+    "cw": "CW-03",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Desactivar Lechuga con Ensalada activa → bloqueado: \"error No se puede desactivar el ingrediente porque se usa en los siguientes platillos activos: \"Ensalada\". Desactiva o actualiza primero los platillos.\""
+  },
+  {
+    "cw": "CW-03",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Con Lechuga inactiva, reactivar Ensalada → activo=f, mensaje \"error El ingrediente \"Lechuga\" está inactivo y no puede utilizarse en una receta.\"; Venta antes: [Agregar Ensalada al carrito, Agregar Hamburguesa al carrito]; ahora: [Agregar Hamburguesa al carrito]"
+  },
+  {
+    "cw": "CW-08",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Pan 20/20 → \"warning Carne Existencia actual: 2,000 g| Mínimo obligatorio: 2,000 g Bajo stock warning Pan Existencia actual: 20 piezas| Mínimo obligatorio: 20 piezas Bajo stock check_circle Agua botella Existencia actual: 20 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Lechuga Existencia actual: 500 g| Mínimo obligatorio: 100 g Normal check_circle Papa Existencia actual: 3,000 g| Mínimo obligatorio: 500 g Normal check_circle Queso Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Refresco lata Existencia actual: 40 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Salchicha Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Tortilla Existencia actual: 50 piezas| Mínimo obligatorio: 10 piezas Normal\"; Carne 2000/2000 → \"warning Carne Existencia actual: 2,000 g| Mínimo obligatorio: 2,000 g Bajo stock warning Pan Existencia actual: 20 piezas| Mínimo obligatorio: 20 piezas Bajo stock check_circle Agua botella Existencia actual: 20 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Lechuga Existencia actual: 500 g| Mínimo obligatorio: 100 g Normal check_circle Papa Existencia actual: 3,000 g| Mínimo obligatorio: 500 g Normal check_circle Queso Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Refresco lata Existencia actual: 40 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Salchicha Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Tortilla Existencia actual: 50 piezas| Mínimo obligatorio: 10 piezas Normal\""
+  },
+  {
+    "cw": "CW-08",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Pan 0 → \"error Pan Existencia actual: 0 piezas| Mínimo obligatorio: 20 piezas Agotado warning Carne Existencia actual: 2,000 g| Mínimo obligatorio: 2,000 g Bajo stock check_circle Agua botella Existencia actual: 20 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Lechuga Existencia actual: 500 g| Mínimo obligatorio: 100 g Normal check_circle Papa Existencia actual: 3,000 g| Mínimo obligatorio: 500 g Normal check_circle Queso Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Refresco lata Existencia actual: 40 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Salchicha Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Tortilla Existencia actual: 50 piezas| Mínimo obligatorio: 10 piezas Normal\"; Carne se evalúa por separado → \"error Pan Existencia actual: 0 piezas| Mínimo obligatorio: 20 piezas Agotado warning Carne Existencia actual: 2,000 g| Mínimo obligatorio: 2,000 g Bajo stock check_circle Agua botella Existencia actual: 20 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Lechuga Existencia actual: 500 g| Mínimo obligatorio: 100 g Normal check_circle Papa Existencia actual: 3,000 g| Mínimo obligatorio: 500 g Normal check_circle Queso Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Refresco lata Existencia actual: 40 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Salchicha Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Tortilla Existencia actual: 50 piezas| Mínimo obligatorio: 10 piezas Normal\""
+  },
+  {
+    "cw": "CW-08",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Reposición superior: Pan 25 → \"check_circle Agua botella Existencia actual: 20 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Carne Existencia actual: 4,500 g| Mínimo obligatorio: 2,000 g Normal check_circle Lechuga Existencia actual: 500 g| Mínimo obligatorio: 100 g Normal check_circle Pan Existencia actual: 25 piezas| Mínimo obligatorio: 20 piezas Normal check_circle Papa Existencia actual: 3,000 g| Mínimo obligatorio: 500 g Normal check_circle Queso Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Refresco lata Existencia actual: 40 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Salchicha Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Tortilla Existencia actual: 50 piezas| Mínimo obligatorio: 10 piezas Normal\"; Carne 4500 → \"check_circle Agua botella Existencia actual: 20 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Carne Existencia actual: 4,500 g| Mínimo obligatorio: 2,000 g Normal check_circle Lechuga Existencia actual: 500 g| Mínimo obligatorio: 100 g Normal check_circle Pan Existencia actual: 25 piezas| Mínimo obligatorio: 20 piezas Normal check_circle Papa Existencia actual: 3,000 g| Mínimo obligatorio: 500 g Normal check_circle Queso Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Refresco lata Existencia actual: 40 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Salchicha Existencia actual: 30 piezas| Mínimo obligatorio: 5 piezas Normal check_circle Tortilla Existencia actual: 50 piezas| Mínimo obligatorio: 10 piezas Normal\""
+  },
+  {
+    "cw": "CW-09",
+    "vista": "escritorio",
+    "ok": false,
+    "detalle": "Avisos: 9 filas únicas (Agua botella, Carne, Lechuga, Pan, Papa, Queso, Refresco lata, Salchicha, Tortilla); ingredientes activos: 8"
+  },
+  {
+    "cw": "CW-09",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Al volver a la pestaña (visibilitychange/focus) Queso muestra: \"Queso Existencia actual: 3 piezas| Mínimo obligatorio: 5 piezas\" (stock real 3)"
+  },
+  {
+    "cw": "CW-09",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Tras recargar Queso muestra: \"Queso Existencia actual: 3 piezas| Mínimo obligatorio: 5 piezas\""
+  },
+  {
+    "cw": "CW-09",
+    "vista": "movil",
+    "ok": true,
+    "detalle": "Lista de Avisos a 360 px: 9 filas, sin desbordamiento horizontal"
+  }
+]

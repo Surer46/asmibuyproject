@@ -1,0 +1,8 @@
+[
+  {
+    "cw": "CW-18",
+    "vista": "escritorio",
+    "ok": true,
+    "detalle": "Foco en login (tras la transición CSS): reposo borde rgb(229, 231, 235)/sombra none; #correo borde rgb(22, 101, 52), sombra rgba(249, 115, 22, 0.2) 0px 0px 0px 3px; #password borde rgb(22, 101, 52), sombra rgba(249, 115, 22, 0.2) 0px 0px 0px 3px"
+  }
+]

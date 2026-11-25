@@ -1,0 +1,14 @@
+[
+ {"cw":"DATOS","vista":"escritorio","ok":true,"detalle":"Platillos: Hamburguesa, Ensalada, Torta, Agua, Refresco, Papas, Hot dog, Taco ($100 c/u); promociones: Torta 15%, Agua gratis, Refresco 2x1, Papas 3x1, Hot dog 10%, Hot dog 20% A, Hot dog 20% B, Taco temporal 50% (14:26→14:28 UTC)"},
+ {"cw":"CW-10","vista":"escritorio","ok":true,"detalle":"Antes del inicio (08:22:10 < 08:26:00 hora local): Taco $100.00 sin descuento"},
+ {"cw":"CW-05","vista":"escritorio","ok":true,"detalle":"Folio ORD-00001: total 200.00; consumo Carne 300, Pan 2, Queso 2; Pan 40→38, Carne 4500→4200, Queso 30→28"},
+ {"cw":"CW-11","vista":"escritorio","ok":true,"detalle":"2 × Torta $100 con 15 %: carrito -$30.00 → $170.00; orden ORD-00002 descuento 30.00, total 170.00 (Torta 15%)"},
+ {"cw":"CW-11","vista":"escritorio","ok":true,"detalle":"Agua 100 %: carrito $0.00; orden ORD-00003 total 0.00, método SIN_COBRO, consumo Agua botella 1"},
+ {"cw":"CW-12","vista":"escritorio","ok":true,"detalle":"5 × Refresco 2x1: total 300.00; cobradas 3, bonificadas 2; consumo Refresco lata 5"},
+ {"cw":"CW-12","vista":"escritorio","ok":true,"detalle":"4 × Papas 3x1: total 200.00; cobradas 2, bonificadas 2; consumo Papa 400 g"},
+ {"cw":"CW-13","vista":"escritorio","ok":true,"detalle":"Hot dog con 10 %, 20 % A y 20 % B: aplica Hot dog 20% A -$20.00 (mayor ahorro; empate → menor id)"},
+ {"cw":"CW-13","vista":"escritorio","ok":true,"detalle":"Torta + Hot dog + Hamburguesa: una sola promoción Hot dog 20% A, descuento 20.00, total 280.00; partidas 100.00 + 80.00 + 100.00 = 280.00"},
+ {"cw":"CW-14","vista":"escritorio","ok":true,"detalle":"Cotizado $100.00; el precio cambió a 120 antes de confirmar → no se cobró; aviso 'Los precios o promociones cambiaron… verifica el nuevo total'; nuevo total $120.00"},
+ {"cw":"CW-14","vista":"escritorio","ok":true,"detalle":"Tras aceptar el nuevo resumen la orden ORD-00007 se cobra 120.00"},
+ {"cw":"CW-15","vista":"escritorio","ok":true,"detalle":"BD: tras renombrar a 'Hamburguesa Doble', precio 150 y carne 200 g, la venta ORD-00001 conserva 'Hamburguesa' a 100.00, total 200.00 y consumo de carne 300 g (la comprobación en UI se repite en la fase B2)"}
+]
