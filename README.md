@@ -34,3 +34,14 @@ Hay 24 tareas, seis por integrante. Codex coordina el seguimiento documental y l
 La tarea que da una base ejecutable al equipo es W1-02, precedida por W1-01. Cada tarea tiene lista, resultado, dependencias y auditoría. Revisión: 1 por 4, 2 por 1, 3 por 2 y 4 por 3, con revisiones adicionales de integración. No marcar terminada sin evidencia y aprobación independiente.
 
 Los archivos describen trabajo pendiente. No hay aplicación implementada ni pruebas de funcionamiento ejecutadas por crear esta documentación.
+
+## Despliegue detrás de un proxy (TRUST_PROXY)
+
+En el despliegue la API queda detrás de un proxy o balanceador HTTPS (por ejemplo Render). Sin configuración, Express ve la IP del proxy y todas las cajas parecen una sola: cinco contraseñas erróneas bloquearían el acceso de todo el personal. Definir en `app/backend/.env` (ver [.env.example](app/backend/.env.example)):
+
+| Variable | Local | Despliegue | Efecto |
+| --- | --- | --- | --- |
+| `TRUST_PROXY` | vacío | `1` (un proxy delante de la API) o una lista de subredes | Express toma la IP real de `X-Forwarded-For` confiando sólo en ese número de saltos. No usar `true`: permitiría falsificar la IP y evadir el límite. |
+| `LOGIN_MAX_INTENTOS_IP` | `20` | `20` | Fallos permitidos por IP antes de bloquearla. El límite por IP + correo sigue en 5 (429 con `Retry-After`). |
+
+Verificación sin base de datos: `npm run build:backend` y `node app/backend/dist/scripts/verificar-entrega-proxy.js`.

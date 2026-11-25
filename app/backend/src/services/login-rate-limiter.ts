@@ -25,8 +25,20 @@ export class LoginRateLimiter {
   // Almacén de intentos fallidos indexado solo por IP
   private static intentosPorIp: Map<string, EstadoIntento> = new Map();
 
-  // Umbral de intentos permitidos antes de aplicar bloqueo temporal
+  // Umbral de intentos permitidos por IP + correo antes de aplicar bloqueo temporal
   public static readonly MAX_INTENTOS_SIN_BLOQUEO = 5;
+
+  // Umbral por IP sola, mayor que el de IP + correo (A-ENT-02): varias cajas pueden compartir
+  // la misma IP pública (red de la sucursal, NAT o proxy) y los errores de una persona no deben
+  // bloquear al resto. Sigue frenando a quien prueba muchos correos desde una misma IP.
+  // Configurable con LOGIN_MAX_INTENTOS_IP (mínimo MAX_INTENTOS_SIN_BLOQUEO). Se lee en cada uso
+  // porque dotenv se carga después de importar este módulo.
+  public static get MAX_INTENTOS_POR_IP(): number {
+    return Math.max(
+      LoginRateLimiter.MAX_INTENTOS_SIN_BLOQUEO,
+      Number.parseInt(process.env.LOGIN_MAX_INTENTOS_IP || '', 10) || 20
+    );
+  }
 
   // Ventana de expiración de intentos (15 minutos)
   private static readonly VENTANA_EXPIRACION_MS = 15 * 60 * 1000;
@@ -41,11 +53,11 @@ export class LoginRateLimiter {
    * Calcula el tiempo de penalización en segundos según el número de fallos consecutivos
    * Implementa espera creciente (progressive backoff)
    */
-  private static calcularTiempoBloqueoSegundos(intentosFallidos: number): number {
-    if (intentosFallidos < this.MAX_INTENTOS_SIN_BLOQUEO) {
+  private static calcularTiempoBloqueoSegundos(intentosFallidos: number, umbral: number = this.MAX_INTENTOS_SIN_BLOQUEO): number {
+    if (intentosFallidos < umbral) {
       return 0;
     }
-    const exceso = intentosFallidos - this.MAX_INTENTOS_SIN_BLOQUEO;
+    const exceso = intentosFallidos - umbral;
     switch (exceso) {
       case 0:
         return 30; // 5 fallos: 30 segundos
@@ -99,8 +111,13 @@ export class LoginRateLimiter {
       return { bloqueado: true, reintentarEnSegundos: segundos };
     }
 
-    const fallosActuales = Math.max(estadoIp?.intentosFallidos || 0, estadoClave?.intentosFallidos || 0);
-    const intentosRestantes = Math.max(0, this.MAX_INTENTOS_SIN_BLOQUEO - fallosActuales);
+    const intentosRestantes = Math.max(
+      0,
+      Math.min(
+        this.MAX_INTENTOS_SIN_BLOQUEO - (estadoClave?.intentosFallidos || 0),
+        this.MAX_INTENTOS_POR_IP - (estadoIp?.intentosFallidos || 0)
+      )
+    );
 
     return {
       bloqueado: false,
@@ -133,7 +150,7 @@ export class LoginRateLimiter {
     // Actualizar estado por IP
     const estadoPrevioIp = this.intentosPorIp.get(ipLimpia);
     const fallosIp = (estadoPrevioIp ? estadoPrevioIp.intentosFallidos : 0) + 1;
-    const segundosBloqueoIp = this.calcularTiempoBloqueoSegundos(fallosIp);
+    const segundosBloqueoIp = this.calcularTiempoBloqueoSegundos(fallosIp, this.MAX_INTENTOS_POR_IP);
     const bloqueadoHastaIp = segundosBloqueoIp > 0 ? ahora + segundosBloqueoIp * 1000 : 0;
 
     this.intentosPorIp.set(ipLimpia, {
@@ -151,11 +168,13 @@ export class LoginRateLimiter {
       };
     }
 
-    const fallosActuales = Math.max(fallosClave, fallosIp);
     return {
       bloqueado: false,
       reintentarEnSegundos: 0,
-      intentosRestantes: Math.max(0, this.MAX_INTENTOS_SIN_BLOQUEO - fallosActuales)
+      intentosRestantes: Math.max(
+        0,
+        Math.min(this.MAX_INTENTOS_SIN_BLOQUEO - fallosClave, this.MAX_INTENTOS_POR_IP - fallosIp)
+      )
     };
   }
 

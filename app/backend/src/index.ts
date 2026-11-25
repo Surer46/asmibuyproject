@@ -10,11 +10,21 @@ import { promocionesRouter } from './routes/promociones.routes';
 import { ventasRouter } from './routes/ventas.routes';
 import { verificarSesion, validarCSRF, esOrigenPermitido } from './middlewares/auth.middleware';
 import { probarConexionBD } from './config/database';
+import { interpretarTrustProxy, describirTrustProxy } from './config/proxy';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// IP real del cliente detrás de un proxy (A-ENT-02). Desactivado por defecto en local.
+const trustProxy = interpretarTrustProxy(process.env.TRUST_PROXY);
+if (trustProxy !== false) {
+  app.set('trust proxy', trustProxy);
+}
+if (trustProxy === true) {
+  console.warn('⚠️ [Seguridad]: TRUST_PROXY=true confía en cualquier X-Forwarded-For; use el número de proxies (p. ej. 1).');
+}
 
 // Cabeceras HTTP de seguridad básicas (A3-1-03)
 app.use((_req, res, next) => {
@@ -75,6 +85,7 @@ app.listen(PORT, async () => {
   console.log(`📡 URL Base: http://localhost:${PORT}/api/v1`);
   console.log(`🩺 Endpoint de Salud: http://localhost:${PORT}/api/v1/health`);
   console.log(`🔐 Autenticación: http://localhost:${PORT}/api/v1/auth/login`);
+  console.log(`🌐 Trust proxy: ${describirTrustProxy(trustProxy)}`);
   console.log('====================================================');
 
   const bd = await probarConexionBD();
