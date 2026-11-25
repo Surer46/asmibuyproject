@@ -26,7 +26,7 @@ echo.
 echo 🔐 Cuentas nominales de acceso:
 echo    - Las cuentas se gestionan directamente en tu base de datos PostgreSQL.
 echo    - Para crear o gestionar cuentas nominales desde terminal ejecuta:
-echo      node app\backend\dist\scripts\mantenimiento-cuentas.js crear "Nombre" correo password ADMINISTRADOR^|TRABAJADOR
+echo      node app\backend\dist\scripts\mantenimiento-cuentas.js crear "Nombre" correo - ADMINISTRADOR^|TRABAJADOR
 echo      node app\backend\dist\scripts\mantenimiento-cuentas.js listar
 echo ========================================================================
 echo Presiona cualquier tecla para cerrar esta ventana de inicio...
