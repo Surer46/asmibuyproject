@@ -6,7 +6,7 @@ Etiquetas usadas: **reportado por el ejecutor** (texto de la evidencia, sin repe
 
 ## a) Versión
 - SHA de `main` **verificado en clon limpio** el 2026-11-25: `047f9d52747da4178e5388014ca60975e7b52277`.
-- URL del despliegue: **no registrada en `main`**. El PR #9 (abierto) registra un despliegue en Render, reportado por el integrante 3 y no verificado aquí.
+- URL del despliegue: web `https://asmibuyproject-1.onrender.com` (API `https://asmibuyproject.onrender.com`), en Render (PR #9). Health `OPERATIVO` «(Supabase)» en `production` verificado el 2026-11-25 a las 22:50 por la integrante 2; detalle en `docs/auditorias/W1-06.md`.
 - **Defecto abierto en este SHA:** QA-V-09 (PR #11, sin fusionar), reportado por el ejecutor: al recargar cualquier pantalla la app lleva al login aunque la sesión siga activa. Ninguna suite de la sección d) lo detecta.
 
 ## b) Alcance entregado
