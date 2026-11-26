@@ -186,4 +186,4 @@ Tampoco cuentan, por no ser una sección «Decisión del revisor» de `main`:
 | 1 | | | | |
 | 2 | | | | |
 | 3 | | | | |
-| 4 | | | | |
+| 4 | Matos May Oscar Michel | Ventas y reportes; orquestador | 2026-11-25 | conforme con observaciones: «Entrega con los pendientes declarados en f) y en W1-06.md: A6 con sesión, teléfonos (CW-17) y restauración (CW-20)» |
